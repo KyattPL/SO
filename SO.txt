@@ -1,5 +1,5 @@
-SFJ -> Insertion Sort (zrób se 3 wersje, bez wyw³aszczania, z, i z wyw³aszczaniem priorytetowym). Nie liczyæ ile razy by³o sortowane (zak³adam instant)
+SJF -> Insertion Sort (Preemptive, Non-preemptive, Preemptive with priority). Don't count how many times my queue has been sorted.
 
-ROT -> tylko zliczaæ prze³¹czanie miêdzy procesami (bez mierzenia czasu), jeœli k=10 a proces mia³ 7 to po wykonaniu od razu zaczyna next.
+ROT -> only count switches between processes (without measuring time), if k=10 and process had time=7 then ROT should immediately start next one.
 
-Mo¿e byæ kilka ¿¹dañ w jednym momencie
+There can be multiple requests at once.
