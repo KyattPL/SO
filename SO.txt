@@ -1,5 +1,5 @@
 SJF -> Insertion Sort (Preemptive, Non-preemptive, Preemptive with priority). Don't count how many times my queue has been sorted.
 
-ROT -> only count switches between processes (without measuring time), if k=10 and process had time=7 then ROT should immediately start next one.
+RR -> only count switches between processes (without measuring time), if k=10 and process had time=7 then ROT should immediately start next one.
 
 There can be multiple requests at once.
