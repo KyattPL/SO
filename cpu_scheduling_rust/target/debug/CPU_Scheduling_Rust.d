@@ -1,1 +1,1 @@
-C:\Users\siema\Documents\SO\SO\CPU_Scheduling_Rust\target\debug\cpu_scheduling_rust.exe: C:\Users\siema\Documents\SO\SO\CPU_Scheduling_Rust\src\main.rs
+C:\Users\Kyatt\Desktop\Rust\SO\cpu_scheduling_rust\target\debug\cpu_scheduling_rust.exe: C:\Users\Kyatt\Desktop\Rust\SO\cpu_scheduling_rust\src\main.rs C:\Users\Kyatt\Desktop\Rust\SO\cpu_scheduling_rust\src\process.rs C:\Users\Kyatt\Desktop\Rust\SO\cpu_scheduling_rust\src\queue.rs

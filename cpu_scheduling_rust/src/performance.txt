@@ -1,0 +1,7 @@
+time: 35s
+iterations: 27.005.087
+on debug mode
+
+time: holy shit instant
+iterations: 26.976.467
+on release mode
