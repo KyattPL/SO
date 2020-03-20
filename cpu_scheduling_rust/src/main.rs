@@ -4,27 +4,54 @@ mod queue;
 use process::Process;
 use queue::Queue;
 use rand::prelude::*;
+use std::fs;
 
 fn main() {
-    let mut v = generate_processes(100000);
+    //let mut v = generate_processes(100000);
+    let mut v = read_from_file();
 
     let iterations = fcfs(&mut v);
     println!("Number of iterations: {}", iterations);
-    println!("Average time in queue: {}", average_time_in_queue(&mut v));
+    println!("Average time in queue: {}", average_time_in_queue(&v));
+    println!("Max time in queue: {}", max_time_in_queue(&v));
+
+    println!();
+
+    let mut v = read_from_file();
+    let (iterations, number_of_jumps) = rr(&mut v);
+    println!("Number of iterations: {}", iterations);
+    println!("Number of jumps: {}", number_of_jumps);
 }
 
 fn generate_processes(mut num_of_processes: i32) -> Vec<Process> {
     let mut processes: Vec<Process> = vec![];
     let mut rng = thread_rng();
+    let mut string = String::from("");
     while num_of_processes != 0 {
         let temp_time = rng.gen_range(5, 50);
+        string.push_str(&temp_time.to_string());
+        string.push_str("\n");
         processes.push(Process::new(temp_time));
         num_of_processes -= 1;
+    }
+    write_to_file(string);
+    processes
+}
+
+fn write_to_file(data: String) {
+    fs::write("data.txt", data).expect("Unable to write to the file");
+}
+
+fn read_from_file() -> Vec<Process> {
+    let data = fs::read_to_string("data.txt").expect("Unable to read the file");
+    let mut processes: Vec<Process> = Vec::new();
+    for line in data.lines() {
+        processes.push(Process::new(line.parse().unwrap()));
     }
     processes
 }
 
-fn average_time_in_queue(processes: &mut Vec<Process>) -> f64 {
+fn average_time_in_queue(processes: &Vec<Process>) -> f64 {
     let mut size = processes.len() - 1;
     let mut sum = 0;
     while size != 0 {
@@ -32,6 +59,19 @@ fn average_time_in_queue(processes: &mut Vec<Process>) -> f64 {
         size -= 1;
     }
     sum as f64 / processes.len() as f64
+}
+
+fn max_time_in_queue(processes: &Vec<Process>) -> i32 {
+    let mut max = 0;
+    let mut size = processes.len() - 1;
+    while size != 0 {
+        let time = processes.get(size).unwrap().get_time_in_queue();
+        if time > max {
+            max = time;
+        }
+        size -= 1;
+    }
+    max
 }
 
 fn fcfs(processes: &mut Vec<Process>) -> i32 {
@@ -73,4 +113,52 @@ fn fcfs(processes: &mut Vec<Process>) -> i32 {
         }
     }
     iterations
+}
+
+fn rr(processes: &mut Vec<Process>) -> (i32, i32) {
+    let mut queue = Queue::new(vec![0]);
+
+    let mut rng = rand::thread_rng();
+    let mut iterations: i32 = 0;
+    let mut process_no: i32 = 1;
+    let mut number_of_jumps: i32 = 0;
+    let quant = 1;
+    let mut quant_counter = 0;
+    let mut index = 0;
+
+    loop {
+        iterations += 1;
+        if rng.gen_range(0, 100) >= 99 && process_no < processes.len() as i32 {
+            queue.push_process(process_no);
+            process_no += 1;
+        }
+
+        if (processes.len() as i32) == process_no && queue.is_empty() {
+            break;
+        }
+
+        if queue.size() > 0 {
+            let process = processes.get_mut(queue.list[index] as usize).unwrap();
+            process.add_time_processed();
+            if process.get_time_processed() == process.get_task_time() {
+                queue.remove(index as usize);
+                quant_counter = 0;
+                if index == queue.size() {
+                    index = 0;
+                }
+                continue;
+            }
+
+            if quant_counter == quant - 1 {
+                index += 1;
+                quant_counter = 0;
+                number_of_jumps += 1;
+                if index == queue.size() {
+                    index = 0;
+                }
+                continue;
+            }
+        }
+    }
+    (iterations, number_of_jumps)
 }

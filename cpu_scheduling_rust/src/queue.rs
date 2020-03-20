@@ -22,4 +22,8 @@ impl Queue {
     pub fn remove(&mut self, index: usize) {
         self.list.remove(index);
     }
+
+    pub fn last_process(&self) -> i32 {
+        *self.list.last().unwrap()
+    }
 }
