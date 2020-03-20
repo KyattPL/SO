@@ -21,6 +21,14 @@ fn main() {
     let (iterations, number_of_jumps) = rr(&mut v);
     println!("Number of iterations: {}", iterations);
     println!("Number of jumps: {}", number_of_jumps);
+
+    println!();
+
+    let mut v = read_from_file();
+    let (iterations, starving_processes) = sjf_preemptive(&mut v);
+    println!("Number of iterations: {}", iterations);
+    println!("Average time in queue: {}", average_time_in_queue(&v));
+    println!("Processes that have been starving: {}", starving_processes);
 }
 
 fn generate_processes(mut num_of_processes: i32) -> Vec<Process> {
@@ -127,7 +135,6 @@ fn rr(processes: &mut Vec<Process>) -> (i32, i32) {
     let mut index = 0;
 
     loop {
-        iterations += 1;
         if rng.gen_range(0, 100) >= 99 && process_no < processes.len() as i32 {
             queue.push_process(process_no);
             process_no += 1;
@@ -138,6 +145,7 @@ fn rr(processes: &mut Vec<Process>) -> (i32, i32) {
         }
 
         if queue.size() > 0 {
+            iterations += 1;
             let process = processes.get_mut(queue.list[index] as usize).unwrap();
             process.add_time_processed();
             if process.get_time_processed() == process.get_task_time() {
@@ -161,4 +169,46 @@ fn rr(processes: &mut Vec<Process>) -> (i32, i32) {
         }
     }
     (iterations, number_of_jumps)
+}
+
+fn sjf_preemptive(processes: &mut Vec<Process>) -> (i32,i32) {
+    let mut queue = Queue::new(vec![0]);
+    let mut rng = rand::thread_rng();
+    let mut process_no = 1;
+    let mut iterations = 0;
+    let mut starving_processes = 0;
+    
+    loop {
+        if rng.gen_range(0, 100) >= 97 && process_no < processes.len() as i32 {
+            queue.push_process(process_no);
+            queue.insertion_sort(processes);
+            //println!("{:?}", queue);
+            process_no += 1;
+        }
+
+        if queue.size() > 0 {
+            let first_in_queue: usize = queue.list[0] as usize;
+            let processed_task = processes.get_mut(first_in_queue).unwrap();
+            processed_task.add_time_processed();
+            if processed_task.get_time_processed() == processed_task.get_task_time() {
+                if processed_task.get_task_time() >= 5*processed_task.get_time_in_queue() {
+                    starving_processes += 1;
+                }
+                queue.remove(0);
+            }
+
+            let mut size_of_queue: i32 = queue.size() as i32;
+            while size_of_queue != 1 && size_of_queue != 0 {
+                let queue_no: usize = queue.list[(size_of_queue - 1) as usize] as usize;
+                processes.get_mut(queue_no).unwrap().add_time_in_queue();
+                size_of_queue -= 1;
+            }
+
+            if (processes.len() as i32) == process_no && queue.is_empty() {
+                break;
+            }
+            iterations += 1;
+        }
+    }
+    (iterations, starving_processes)
 }

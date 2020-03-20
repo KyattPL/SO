@@ -1,3 +1,6 @@
+use crate::Process;
+
+#[derive(Debug)]
 pub struct Queue {
     pub list: Vec<i32>,
 }
@@ -23,7 +26,18 @@ impl Queue {
         self.list.remove(index);
     }
 
-    pub fn last_process(&self) -> i32 {
-        *self.list.last().unwrap()
+    pub fn insertion_sort(&mut self, processes: &Vec<Process>) {
+        let mut counter = 1;
+        while counter < self.list.len() {
+            let mut inner_counter = counter;
+            
+            while inner_counter > 0 && processes.get(self.list[inner_counter-1] as usize).unwrap().get_task_time() > processes.get(self.list[inner_counter] as usize).unwrap().get_task_time() {
+                let temp_val = self.list[inner_counter - 1];
+                self.list[inner_counter - 1] = self.list[inner_counter];
+                self.list[inner_counter] = temp_val;
+                inner_counter -= 1;
+            }
+            counter += 1;
+        }
     }
 }
