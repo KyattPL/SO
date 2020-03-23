@@ -7,28 +7,36 @@ use rand::prelude::*;
 use std::fs;
 
 fn main() {
+    let path = String::from("data_rand.txt");
     //let mut v = generate_processes(100000);
-    let mut v = read_from_file();
+    //generate_nonrandom_input(&path);
 
+    let mut v = read_from_file(&path);
     let iterations = fcfs(&mut v);
-    println!("Number of iterations: {}", iterations);
-    println!("Average time in queue: {}", average_time_in_queue(&v));
-    println!("Max time in queue: {}", max_time_in_queue(&v));
+    let mut str1: String = String::from("FCFS:\n");
+    str1.push_str(&format!("Number of iterations: {}\n", iterations));
+    str1.push_str(&format!("Average time in queue: {}\n", average_time_in_queue(&v)));
+    str1.push_str(&format!("Max time in queue: {}\n\n", max_time_in_queue(&v)));
 
-    println!();
+    print!("{}",str1);
 
-    let mut v = read_from_file();
+    let mut v = read_from_file(&path);
     let (iterations, number_of_jumps) = rr(&mut v);
-    println!("Number of iterations: {}", iterations);
-    println!("Number of jumps: {}", number_of_jumps);
+    let mut str2: String = String::from("Round Robin:\n");
+    str2.push_str(&format!("Number of iterations: {}\n", iterations));
+    str2.push_str(&format!("Number of jumps: {}\n\n", number_of_jumps));
 
-    println!();
+    print!("{}", str2);
 
-    let mut v = read_from_file();
+    let mut v = read_from_file(&path);
     let (iterations, starving_processes) = sjf_preemptive(&mut v);
-    println!("Number of iterations: {}", iterations);
-    println!("Average time in queue: {}", average_time_in_queue(&v));
-    println!("Processes that have been starving: {}", starving_processes);
+    let mut str3: String = String::from("SFJ-preemptive:\n");
+    str3.push_str(&format!("Number of iterations: {}\n", iterations));
+    str3.push_str(&format!("Average time in queue: {}\n", average_time_in_queue(&v)));
+    str3.push_str(&format!("Processes that have been starving: {}", starving_processes));
+
+    println!("{}", str3);
+    save_results(format!("{}{}{}", str1, str2, str3));
 }
 
 fn generate_processes(mut num_of_processes: i32) -> Vec<Process> {
@@ -42,21 +50,36 @@ fn generate_processes(mut num_of_processes: i32) -> Vec<Process> {
         processes.push(Process::new(temp_time));
         num_of_processes -= 1;
     }
-    write_to_file(string);
+    write_to_file(string, &String::from("data_rand.txt"));
     processes
 }
 
-fn write_to_file(data: String) {
-    fs::write("data.txt", data).expect("Unable to write to the file");
+fn generate_nonrandom_input(path: &String) {
+    let mut counter = 1;
+    let mut string = String::from("");
+    while counter <= 200 {
+        string.push_str(&counter.to_string());
+        string.push_str("\n");
+        counter += 1;
+    }
+    write_to_file(string, path);
 }
 
-fn read_from_file() -> Vec<Process> {
-    let data = fs::read_to_string("data.txt").expect("Unable to read the file");
+fn write_to_file(data: String, path: &String) {
+    fs::write(path, data).expect("Unable to write to the file");
+}
+
+fn read_from_file(path: &String) -> Vec<Process> {
+    let data = fs::read_to_string(path).expect("Unable to read the file");
     let mut processes: Vec<Process> = Vec::new();
     for line in data.lines() {
         processes.push(Process::new(line.parse().unwrap()));
     }
     processes
+}
+
+fn save_results(data: String) {
+    fs::write("results.txt", data).expect("Unable to write to the file");
 }
 
 fn average_time_in_queue(processes: &Vec<Process>) -> f64 {

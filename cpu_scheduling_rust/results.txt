@@ -1,0 +1,13 @@
+FCFS:
+Number of iterations: 2706477
+Average time in queue: 69.99198
+Max time in queue: 747
+
+Round Robin:
+Number of iterations: 2706478
+Number of jumps: 2606478
+
+SFJ-preemptive:
+Number of iterations: 2706477
+Average time in queue: 52.66517
+Processes that have been starving: 56920
