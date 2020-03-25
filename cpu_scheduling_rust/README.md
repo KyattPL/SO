@@ -13,3 +13,4 @@ descending). Simply change the variable to open these files (or even your own fi
    1. Uncomment line 11, the variable *v* will be then set to vector of processes returned by *generate_processes()* method.
    2. Argument passed to *generate_processes()* method defines how many processes will be generated.
 3. Results are always saved to the "results.txt" file.
+4. In terminal be sure you're inside the *cpu_scheduling_rust* directory. You can run the program using **cargo run --release** in your terminal (--release flag is optional but it will significantly boost the performance of the simulation).
