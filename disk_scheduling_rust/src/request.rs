@@ -23,4 +23,20 @@ impl Request {
     pub fn get_block_num(&self) -> i32 {
         self.block_num
     }
+
+    pub fn get_time_in_queue(&self) -> i32 {
+        self.time_in_queue
+    }
+
+    pub fn distance_to_head(&self, head_pos: i32) -> i32 {
+        if head_pos > self.block_num {
+            head_pos - self.block_num
+        } else {
+            self.block_num - head_pos
+        }
+    }
+
+    pub fn add_time_in_queue(&mut self) {
+        self.time_in_queue += 1;
+    }
 }
