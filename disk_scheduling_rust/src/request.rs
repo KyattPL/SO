@@ -28,6 +28,10 @@ impl Request {
         self.time_in_queue
     }
 
+    pub fn is_realtime(&self) -> bool {
+        self.is_realtime
+    }
+
     pub fn distance_to_head(&self, head_pos: i32) -> i32 {
         if head_pos > self.block_num {
             head_pos - self.block_num
@@ -38,5 +42,9 @@ impl Request {
 
     pub fn add_time_in_queue(&mut self) {
         self.time_in_queue += 1;
+    }
+
+    pub fn time_remaining(&self) -> i32 {
+        self.time_to_handle - self.time_in_queue
     }
 }

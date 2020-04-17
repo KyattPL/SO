@@ -13,11 +13,19 @@ fn main() {
     let fcfs_moves = fcfs(&mut v);
     println!("FCFS number of head moves: {}", fcfs_moves);
     let (sstf_moves, starved_requests) = sstf(&mut v);
-    println!("SSTF number of head moves: {}, this many requests have starved: {}", sstf_moves, starved_requests);
+    println!(
+        "SSTF number of head moves: {}, this many requests have starved: {}",
+        sstf_moves, starved_requests
+    );
     let cscan_moves = cscan(&mut v);
     println!("C-SCAN number of head moves: {}", cscan_moves);
     let scan_moves = scan(&mut v);
     println!("SCAN number of head moves: {}", scan_moves);
+    let tuple = edf(&mut v);
+    println!(
+        "EDF number of heada moves: {}, RT handled: {}, RT starved: {}",
+        tuple.0, tuple.1, tuple.2
+    );
 }
 
 fn generate_requests(mut num_of_requests: i32) -> Vec<Request> {
@@ -64,7 +72,7 @@ fn fcfs(requests: &mut Vec<Request>) -> i32 {
 
         if queue.size() > 0 {
             let first_in_queue: usize = queue.list[0] as usize;
-            let processed_request = requests.get_mut(first_in_queue).unwrap();
+            let processed_request = requests.get(first_in_queue).unwrap();
             let current_block = processed_request.get_block_num();
             if current_block > head_position {
                 head_position += 1;
@@ -85,7 +93,7 @@ fn fcfs(requests: &mut Vec<Request>) -> i32 {
     head_moves
 }
 
-fn sstf(requests: &mut Vec<Request>) -> (i32,i32) {
+fn sstf(requests: &mut Vec<Request>) -> (i32, i32) {
     let mut queue = Queue::new(vec![0]);
     let mut rng = rand::thread_rng();
     let mut request_no = 1;
@@ -102,9 +110,8 @@ fn sstf(requests: &mut Vec<Request>) -> (i32,i32) {
 
         if queue.size() > 0 {
             let first_in_queue: usize = queue.list[0] as usize;
-            let processed_request = requests.get_mut(first_in_queue).unwrap();
+            let processed_request = requests.get(first_in_queue).unwrap();
             let current_block = processed_request.get_block_num();
-            
             if current_block > head_position {
                 head_position += 1;
                 head_moves += 1;
@@ -143,7 +150,7 @@ fn cscan(requests: &mut Vec<Request>) -> i32 {
     let mut disk_array: [i32; BLOCK_SIZE as usize] = [0; BLOCK_SIZE as usize];
 
     loop {
-        if rng.gen_range(1,500) >= 494 && request_no < requests.len() as i32 {
+        if rng.gen_range(1, 500) >= 494 && request_no < requests.len() as i32 {
             let temp_block = requests.get(request_no as usize).unwrap().get_block_num();
             disk_array[temp_block as usize] += 1;
             request_no += 1;
@@ -153,8 +160,8 @@ fn cscan(requests: &mut Vec<Request>) -> i32 {
         if active_requests > 0 {
             head_position += 1;
             head_moves += 1;
-            
-            if head_position > BLOCK_SIZE-1 {
+
+            if head_position > BLOCK_SIZE - 1 {
                 head_position = 0;
             }
 
@@ -163,7 +170,7 @@ fn cscan(requests: &mut Vec<Request>) -> i32 {
                 disk_array[head_position as usize] = 0;
             }
 
-            if active_requests == 0 && request_no == (requests.len() as i32){
+            if active_requests == 0 && request_no == (requests.len() as i32) {
                 break;
             }
         }
@@ -181,7 +188,7 @@ fn scan(requests: &mut Vec<Request>) -> i32 {
     let mut disk_array: [i32; BLOCK_SIZE as usize] = [0; BLOCK_SIZE as usize];
 
     loop {
-         if rng.gen_range(1,500) >= 494 && request_no < requests.len() as i32 {
+        if rng.gen_range(1, 500) >= 494 && request_no < requests.len() as i32 {
             let temp_block = requests.get(request_no as usize).unwrap().get_block_num();
             disk_array[temp_block as usize] += 1;
             request_no += 1;
@@ -191,8 +198,8 @@ fn scan(requests: &mut Vec<Request>) -> i32 {
         if active_requests > 0 {
             head_position += increment;
             head_moves += 1;
-            
-            if head_position == BLOCK_SIZE-1 {
+
+            if head_position == BLOCK_SIZE - 1 {
                 increment = -1;
             } else if head_position == 0 {
                 increment = 1;
@@ -203,10 +210,94 @@ fn scan(requests: &mut Vec<Request>) -> i32 {
                 disk_array[head_position as usize] = 0;
             }
 
-            if active_requests == 0 && request_no == (requests.len() as i32){
+            if active_requests == 0 && request_no == (requests.len() as i32) {
                 break;
             }
         }
     }
     head_moves
+}
+
+fn edf(requests: &mut Vec<Request>) -> (i32, i32, i32) {
+    let mut rng = rand::thread_rng();
+    let mut queue_basic = Queue::new(vec![]);
+    let mut queue_rt = Queue::new(vec![]);
+    let mut head_moves = 0;
+    let mut head_position = 0;
+    let mut request_no = 0;
+    let mut realtime_handled = 0;
+    let mut realtime_starved = 0;
+
+    loop {
+        if rng.gen_range(1, 500) >= 494 && request_no < requests.len() as i32 {
+            if requests.get(request_no as usize).unwrap().is_realtime() {
+                queue_rt.push_request(request_no);
+                queue_rt.rt_insertion_sort(requests);
+            } else {
+                queue_basic.push_request(request_no);
+            }
+            request_no += 1;
+        }
+
+        if queue_basic.size() > 0 || queue_rt.size() > 0 {
+            if queue_rt.size() > 0 {
+                let first_in_queue = queue_rt.list[0] as usize;
+                let processed_request = requests.get(first_in_queue).unwrap();
+                let current_block = processed_request.get_block_num();
+                if current_block > head_position {
+                    head_position += 1;
+                    head_moves += 1;
+                } else if current_block < head_position {
+                    head_position -= 1;
+                    head_moves += 1;
+                } else {
+                    realtime_handled += 1;
+                    queue_rt.remove(0);
+                }
+                let mut queue_size = queue_rt.size() as i32;
+                let mut i = 0;
+                while queue_size > i {
+                    let temp_index = queue_rt.list[i as usize];
+                    let temp_request = requests.get(temp_index as usize).unwrap();
+                    if temp_request.time_remaining() == 0 {
+                        queue_rt.remove(i as usize);
+                        queue_size -= 1;
+                        realtime_starved += 1;
+                        continue;
+                    }
+                    i += 1;
+                }
+
+                let mut queue_size = queue_rt.size() as i32;
+                while queue_size > 0 {
+                    let temp_index = queue_rt.list[(queue_size - 1) as usize];
+                    let temp_request = requests.get_mut(temp_index as usize).unwrap();
+                    temp_request.add_time_in_queue();
+                    queue_size -= 1;
+                }
+            }
+
+            if queue_basic.size() > 0 && queue_rt.size() == 0 {
+                let first_in_queue = queue_basic.list[0] as usize;
+                let processed_request = requests.get(first_in_queue).unwrap();
+                let current_block = processed_request.get_block_num();
+                if current_block > head_position {
+                    head_position += 1;
+                    head_moves += 1;
+                } else if current_block < head_position {
+                    head_position -= 1;
+                    head_moves += 1;
+                } else {
+                    queue_basic.remove(0);
+                }
+            }
+        }
+
+        if queue_basic.is_empty() && queue_rt.is_empty() && requests.len() == (request_no as usize)
+        {
+            break;
+        }
+    }
+
+    (head_moves, realtime_handled, realtime_starved)
 }
