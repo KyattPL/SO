@@ -47,4 +47,8 @@ impl Request {
     pub fn time_remaining(&self) -> i32 {
         self.time_to_handle - self.time_in_queue
     }
+
+    pub fn is_reachable(&self, head_pos: i32) -> bool {
+        self.distance_to_head(head_pos) - self.time_remaining() >= 0
+    }
 }

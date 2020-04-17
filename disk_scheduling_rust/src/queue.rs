@@ -86,4 +86,20 @@ impl Queue {
             counter += 1;
         }
     }
+
+    pub fn remove_at_pos(&mut self, head_pos: i32, requests: &mut Vec<Request>) -> i32 {
+        let mut temp_vec: Vec<i32> = vec![];
+        for index in &self.list {
+            let temp_req = requests.get(*index as usize).unwrap();
+            if temp_req.get_block_num() == head_pos {
+                temp_vec.push(*index);
+            }
+        }
+        let mut counter = 0;
+        for v in temp_vec {
+            self.list.remove(v as usize);
+            counter += 1;
+        }
+        counter
+    }
 }

@@ -21,10 +21,15 @@ fn main() {
     println!("C-SCAN number of head moves: {}", cscan_moves);
     let scan_moves = scan(&mut v);
     println!("SCAN number of head moves: {}", scan_moves);
-    let tuple = edf(&mut v);
+    let edf_info = edf(&mut v);
     println!(
-        "EDF number of heada moves: {}, RT handled: {}, RT starved: {}",
-        tuple.0, tuple.1, tuple.2
+        "EDF number of head moves: {}, RT handled: {}, RT starved: {}",
+        edf_info.0, edf_info.1, edf_info.2
+    );
+    let fdscan_info = fdscan(&mut v);
+    println!(
+        "FD-SCAN number of head moves: {}, RT handled: {}, RT starved: {}",
+        fdscan_info.0, fdscan_info.1, fdscan_info.2
     );
 }
 
@@ -295,6 +300,106 @@ fn edf(requests: &mut Vec<Request>) -> (i32, i32, i32) {
 
         if queue_basic.is_empty() && queue_rt.is_empty() && requests.len() == (request_no as usize)
         {
+            break;
+        }
+    }
+
+    (head_moves, realtime_handled, realtime_starved)
+}
+
+fn fdscan(requests: &mut Vec<Request>) -> (i32, i32, i32) {
+    let mut disk_array: [i32; BLOCK_SIZE as usize] = [0; BLOCK_SIZE as usize];
+    let mut queue_rt = Queue::new(vec![]);
+    let mut head_moves = 0;
+    let mut head_position = 0;
+    let mut rng = rand::thread_rng();
+    let mut request_no = 0;
+    let mut realtime_handled = 0;
+    let mut realtime_starved = 0;
+    let mut active_requests = 0;
+
+    loop {
+        if rng.gen_range(1, 500) >= 494 && request_no < requests.len() as i32 {
+            let current_request = requests.get(request_no as usize).unwrap();
+            let temp_index = current_request.get_block_num();
+            if current_request.is_realtime() {
+                queue_rt.push_request(request_no);
+                queue_rt.rt_insertion_sort(requests);
+                disk_array[temp_index as usize] += 1;
+                active_requests += 1;
+            } else {
+                disk_array[temp_index as usize] += 1;
+                active_requests += 1;
+            }
+            request_no += 1;
+        }
+        loop {
+            if queue_rt.size() > 0 {
+                let first_in_queue = requests.get(queue_rt.list[0] as usize).unwrap();
+                if !first_in_queue.is_reachable(head_position) {
+                    queue_rt.remove(0);
+                    realtime_starved += 1;
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+        if active_requests > 0 {
+            active_requests -= disk_array[head_position as usize];
+            disk_array[head_position as usize] = 0;
+            if queue_rt.size() > 0 {
+                let current_block = requests
+                    .get(queue_rt.list[0] as usize)
+                    .unwrap()
+                    .get_block_num();
+                if current_block > head_position {
+                    head_position += 1;
+                    head_moves += 1;
+                } else if current_block < head_position {
+                    head_position -= 1;
+                    head_moves += 1;
+                } else {
+                    realtime_handled += queue_rt.remove_at_pos(head_position, requests);
+                    queue_rt.rt_insertion_sort(requests);
+                }
+                let mut queue_size = queue_rt.size() as i32;
+                let mut i = 0;
+                while queue_size > i {
+                    let temp_index = queue_rt.list[i as usize];
+                    let temp_request = requests.get(temp_index as usize).unwrap();
+                    if temp_request.time_remaining() == 0 {
+                        queue_rt.remove(i as usize);
+                        queue_size -= 1;
+                        realtime_starved += 1;
+                        continue;
+                    }
+                    i += 1;
+                }
+
+                let mut queue_size = queue_rt.size() as i32;
+                while queue_size > 0 {
+                    let temp_index = queue_rt.list[(queue_size - 1) as usize];
+                    let temp_request = requests.get_mut(temp_index as usize).unwrap();
+                    temp_request.add_time_in_queue();
+                    queue_size -= 1;
+                }
+                realtime_handled += queue_rt.remove_at_pos(head_position, requests);
+            } else {
+                head_position += 1;
+                head_moves += 1;
+
+                if head_position > BLOCK_SIZE - 1 {
+                    head_position = 0;
+                }
+
+                if disk_array[head_position as usize] != 0 {
+                    active_requests -= disk_array[head_position as usize];
+                    disk_array[head_position as usize] = 0;
+                }
+            }
+        } else if active_requests == 0 && request_no == (requests.len() as i32) {
             break;
         }
     }
