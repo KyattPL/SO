@@ -7,6 +7,11 @@ use request::Request;
 use std::fs;
 
 const BLOCK_SIZE: i32 = 200;
+const SSTF_STARVING: i32 = 100;
+const RT_PERCENTAGE: i32 = 10;
+const RT_TIME: (i32, i32) = (10, 100);
+const RNG_CHANCE: i32 = 494;
+const RNG_MAX: i32 = 500;
 
 fn main() {
     let mut v: Vec<Request> = generate_requests(100000);
@@ -17,7 +22,7 @@ fn main() {
         "SSTF number of head moves: {}, this many requests have starved: {}",
         sstf_moves, starved_requests
     );
-    let cscan_moves = cscan(&mut v);
+    let cscan_moves = cscan(&mut v, true);
     println!("C-SCAN number of head moves: {}", cscan_moves);
     let scan_moves = scan(&mut v);
     println!("SCAN number of head moves: {}", scan_moves);
@@ -42,9 +47,9 @@ fn generate_requests(mut num_of_requests: i32) -> Vec<Request> {
         let temp_realtime = rng.gen_range(1, 100);
         let mut is_realtime: bool = false;
         let mut time_to_handle: i32 = 0;
-        if temp_realtime <= 10 {
+        if temp_realtime <= RT_PERCENTAGE {
             is_realtime = true;
-            time_to_handle = rng.gen_range(10, 100);
+            time_to_handle = rng.gen_range(RT_TIME.0, RT_TIME.1);
         }
         string.push_str(&temp_block.to_string());
         string.push_str(" ");
@@ -70,7 +75,7 @@ fn fcfs(requests: &mut Vec<Request>) -> i32 {
     let mut head_position: i32 = 0;
 
     loop {
-        if rng.gen_range(1, 500) >= 494 && request_no < requests.len() as i32 {
+        if rng.gen_range(1, RNG_MAX) >= RNG_CHANCE && request_no < requests.len() as i32 {
             queue.push_request(request_no);
             request_no += 1;
         }
@@ -107,7 +112,7 @@ fn sstf(requests: &mut Vec<Request>) -> (i32, i32) {
     let mut starving_requests = 0;
 
     loop {
-        if rng.gen_range(1, 500) >= 494 && request_no < requests.len() as i32 {
+        if rng.gen_range(1, RNG_MAX) >= RNG_CHANCE && request_no < requests.len() as i32 {
             queue.push_request(request_no);
             queue.insertion_sort(head_position, requests);
             request_no += 1;
@@ -124,7 +129,7 @@ fn sstf(requests: &mut Vec<Request>) -> (i32, i32) {
                 head_position -= 1;
                 head_moves += 1;
             } else {
-                if processed_request.get_time_in_queue() > 20 {
+                if processed_request.get_time_in_queue() > SSTF_STARVING {
                     starving_requests += 1;
                 }
                 queue.remove(0);
@@ -146,16 +151,17 @@ fn sstf(requests: &mut Vec<Request>) -> (i32, i32) {
     (head_moves, starving_requests)
 }
 
-fn cscan(requests: &mut Vec<Request>) -> i32 {
+fn cscan(requests: &mut Vec<Request>, is_c: bool) -> i32 {
     let mut rng = rand::thread_rng();
     let mut request_no = 0;
     let mut active_requests = 0;
     let mut head_position = 0;
     let mut head_moves = 0;
     let mut disk_array: [i32; BLOCK_SIZE as usize] = [0; BLOCK_SIZE as usize];
+    let mut increment = 1;
 
     loop {
-        if rng.gen_range(1, 500) >= 494 && request_no < requests.len() as i32 {
+        if rng.gen_range(1, RNG_MAX) >= RNG_CHANCE && request_no < requests.len() as i32 {
             let temp_block = requests.get(request_no as usize).unwrap().get_block_num();
             disk_array[temp_block as usize] += 1;
             request_no += 1;
@@ -163,11 +169,19 @@ fn cscan(requests: &mut Vec<Request>) -> i32 {
         }
 
         if active_requests > 0 {
-            head_position += 1;
+            head_position += increment;
             head_moves += 1;
 
-            if head_position > BLOCK_SIZE - 1 {
-                head_position = 0;
+            if is_c {
+                if head_position > BLOCK_SIZE - 1 {
+                    head_position = 0;
+                }
+            } else {
+                if head_position == BLOCK_SIZE - 1 {
+                    increment = -1;
+                } else if head_position == 0 {
+                    increment = 1;
+                }
             }
 
             if disk_array[head_position as usize] != 0 {
@@ -184,43 +198,7 @@ fn cscan(requests: &mut Vec<Request>) -> i32 {
 }
 
 fn scan(requests: &mut Vec<Request>) -> i32 {
-    let mut rng = rand::thread_rng();
-    let mut request_no = 0;
-    let mut active_requests = 0;
-    let mut head_position = 0;
-    let mut increment = 1;
-    let mut head_moves = 0;
-    let mut disk_array: [i32; BLOCK_SIZE as usize] = [0; BLOCK_SIZE as usize];
-
-    loop {
-        if rng.gen_range(1, 500) >= 494 && request_no < requests.len() as i32 {
-            let temp_block = requests.get(request_no as usize).unwrap().get_block_num();
-            disk_array[temp_block as usize] += 1;
-            request_no += 1;
-            active_requests += 1;
-        }
-
-        if active_requests > 0 {
-            head_position += increment;
-            head_moves += 1;
-
-            if head_position == BLOCK_SIZE - 1 {
-                increment = -1;
-            } else if head_position == 0 {
-                increment = 1;
-            }
-
-            if disk_array[head_position as usize] != 0 {
-                active_requests -= disk_array[head_position as usize];
-                disk_array[head_position as usize] = 0;
-            }
-
-            if active_requests == 0 && request_no == (requests.len() as i32) {
-                break;
-            }
-        }
-    }
-    head_moves
+    cscan(requests, false)
 }
 
 fn edf(requests: &mut Vec<Request>) -> (i32, i32, i32) {
@@ -234,7 +212,7 @@ fn edf(requests: &mut Vec<Request>) -> (i32, i32, i32) {
     let mut realtime_starved = 0;
 
     loop {
-        if rng.gen_range(1, 500) >= 494 && request_no < requests.len() as i32 {
+        if rng.gen_range(1, RNG_MAX) >= RNG_CHANCE && request_no < requests.len() as i32 {
             if requests.get(request_no as usize).unwrap().is_realtime() {
                 queue_rt.push_request(request_no);
                 queue_rt.rt_insertion_sort(requests);
@@ -319,7 +297,7 @@ fn fdscan(requests: &mut Vec<Request>) -> (i32, i32, i32) {
     let mut active_requests = 0;
 
     loop {
-        if rng.gen_range(1, 500) >= 494 && request_no < requests.len() as i32 {
+        if rng.gen_range(1, RNG_MAX) >= RNG_CHANCE && request_no < requests.len() as i32 {
             let current_request = requests.get(request_no as usize).unwrap();
             let temp_index = current_request.get_block_num();
             if current_request.is_realtime() {
