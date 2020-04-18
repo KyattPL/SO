@@ -5,6 +5,7 @@ use queue::Queue;
 use rand::prelude::*;
 use request::Request;
 use std::fs;
+use std::io::*;
 
 const BLOCK_SIZE: i32 = 200;
 const SSTF_STARVING: i32 = 100;
@@ -12,30 +13,65 @@ const RT_PERCENTAGE: i32 = 10;
 const RT_TIME: (i32, i32) = (10, 100);
 const RNG_CHANCE: i32 = 494;
 const RNG_MAX: i32 = 500;
+const FILE: &str = "data_rand.txt";
 
 fn main() {
-    let mut v: Vec<Request> = generate_requests(100000);
+    let mut input: String = String::new();
+    let mut v: Vec<Request>;
+    println!("1. Generate new requests");
+    println!("2. Read requests from file");
+    while input.trim() != "1" && input != "2" {
+        std::io::stdin().read_line(&mut input).unwrap();
+    }
+    match input.trim().parse::<i32>().unwrap() {
+        1 => {
+            println!("How many requests: ");
+            v = generate_requests(get_request_no());
+        }
+        2 => v = read_from_file(),
+        _ => panic!("Unallowed state"),
+    }
+    let mut output = String::from("");
     let fcfs_moves = fcfs(&mut v);
-    println!("FCFS number of head moves: {}", fcfs_moves);
+    let fcfs_out = format!("FCFS number of head moves: {}", fcfs_moves);
+    println!("{}", fcfs_out);
+    output.push_str(&fcfs_out);
+    output.push('\n');
     let (sstf_moves, starved_requests) = sstf(&mut v);
-    println!(
+    let sstf_out = format!(
         "SSTF number of head moves: {}, this many requests have starved: {}",
         sstf_moves, starved_requests
     );
+    println!("{}", sstf_out);
+    output.push_str(&sstf_out);
+    output.push('\n');
     let cscan_moves = cscan(&mut v, true);
-    println!("C-SCAN number of head moves: {}", cscan_moves);
+    let cscan_out = format!("C-SCAN number of head moves: {}", cscan_moves);
+    println!("{}", cscan_out);
+    output.push_str(&cscan_out);
+    output.push('\n');
     let scan_moves = scan(&mut v);
-    println!("SCAN number of head moves: {}", scan_moves);
+    let scan_out = format!("SCAN number of head moves: {}", scan_moves);
+    println!("{}", scan_out);
+    output.push_str(&scan_out);
+    output.push('\n');
     let edf_info = edf(&mut v);
-    println!(
+    let edf_out = format!(
         "EDF number of head moves: {}, RT handled: {}, RT starved: {}",
         edf_info.0, edf_info.1, edf_info.2
     );
+    println!("{}", edf_out);
+    output.push_str(&edf_out);
+    output.push('\n');
     let fdscan_info = fdscan(&mut v);
-    println!(
+    let fdscan_out = format!(
         "FD-SCAN number of head moves: {}, RT handled: {}, RT starved: {}",
         fdscan_info.0, fdscan_info.1, fdscan_info.2
     );
+    println!("{}", fdscan_out);
+    output.push_str(&fdscan_out);
+    output.push('\n');
+    write_to_file(output, &String::from("results.txt"));
 }
 
 fn generate_requests(mut num_of_requests: i32) -> Vec<Request> {
@@ -62,8 +98,34 @@ fn generate_requests(mut num_of_requests: i32) -> Vec<Request> {
     requests
 }
 
+fn get_request_no() -> i32 {
+    let mut input: String = String::new();
+    loop {
+        stdin().read_line(&mut input).unwrap();
+        let num_of_requests = input.trim().parse::<i32>().unwrap();
+        if num_of_requests > 0 {
+            return num_of_requests;
+        }
+    }
+}
+
 fn write_to_file(data: String, path: &String) {
     fs::write(path, data).expect("Unable to write to the file");
+}
+
+fn read_from_file() -> Vec<Request> {
+    let data = fs::read_to_string(FILE).expect("Unable to read the file");
+    let mut requests: Vec<Request> = Vec::new();
+    for line in data.lines() {
+        let request: Vec<&str> = line.split(" ").collect();
+        let is_rt: bool = request[1] != "0";
+        let request_int: (i32, i32) = (
+            request[0].parse::<i32>().unwrap(),
+            request[1].parse::<i32>().unwrap(),
+        );
+        requests.push(Request::new(request_int.0, is_rt, 0, request_int.1));
+    }
+    requests
 }
 
 fn fcfs(requests: &mut Vec<Request>) -> i32 {
