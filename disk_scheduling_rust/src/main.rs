@@ -13,14 +13,13 @@ const RT_PERCENTAGE: i32 = 10;
 const RT_TIME: (i32, i32) = (10, 100);
 const RNG_CHANCE: i32 = 494;
 const RNG_MAX: i32 = 500;
-const FILE: &str = "data_rand.txt";
 
 fn main() {
     let mut input: String = String::new();
     let mut v: Vec<Request>;
     println!("1. Generate new requests");
     println!("2. Read requests from file");
-    while input.trim() != "1" && input != "2" {
+    while input.trim() != "1" && input.trim() != "2" {
         std::io::stdin().read_line(&mut input).unwrap();
     }
     match input.trim().parse::<i32>().unwrap() {
@@ -114,7 +113,11 @@ fn write_to_file(data: String, path: &String) {
 }
 
 fn read_from_file() -> Vec<Request> {
-    let data = fs::read_to_string(FILE).expect("Unable to read the file");
+    let mut input: String = String::new();
+    println!("Name of the file: ");
+    stdin().read_line(&mut input).unwrap();
+    let input = input.trim();
+    let data = fs::read_to_string(input).expect("Unable to read the file");
     let mut requests: Vec<Request> = Vec::new();
     for line in data.lines() {
         let request: Vec<&str> = line.split(" ").collect();
