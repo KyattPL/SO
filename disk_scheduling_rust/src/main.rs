@@ -101,23 +101,25 @@ fn generate_requests(mut num_of_requests: i32) -> Vec<Request> {
 fn generate_nonrandom_requests(num_of_requests: i32) -> Vec<Request> {
     let mut requests: Vec<Request> = Vec::new();
     let mut output: String = String::new();
-    let min = RT_TIME.0;
-    let max = RT_TIME.1;
-    let mut counter = min;
-    let mut rng = rand::thread_rng();
-    while num_of_requests != 0 {
-        let temp_block = rng.gen_range(0, BLOCK_SIZE);
-        requests.push(Request::new(temp_block, true, 0, counter));
-        output.push_str(&temp_block.to_string());
-        output.push_str(" ");
+    let min = 0;
+    let max = BLOCK_SIZE - 1;
+    let mut counter = max;
+    //let mut rng = rand::thread_rng();
+    let mut iterator = num_of_requests;
+    while iterator != 0 {
+        //let temp_block = rng.gen_range(0, BLOCK_SIZE);
+        requests.push(Request::new(counter, false, 0, 0));
         output.push_str(&counter.to_string());
+        output.push_str(" ");
+        output.push_str("0");
         output.push_str("\n");
-        counter += 1;
-        if counter == max {
-            counter = min;
+        counter -= 1;
+        if counter == min - 1 {
+            counter = max;
         }
+        iterator -= 1;
     }
-    write_to_file(output, &String::from("rt_ascending"));
+    write_to_file(output, &String::from("general_descending.txt"));
     requests
 }
 
@@ -258,9 +260,6 @@ fn cscan(requests: &mut Vec<Request>, is_c: bool) -> i32 {
         }
 
         if active_requests > 0 {
-            head_position += increment;
-            head_moves += 1;
-
             if is_c {
                 if head_position > BLOCK_SIZE - 1 {
                     head_position = 0;
@@ -281,6 +280,9 @@ fn cscan(requests: &mut Vec<Request>, is_c: bool) -> i32 {
             if active_requests == 0 && request_no == (requests.len() as i32) {
                 break;
             }
+
+            head_position += increment;
+            head_moves += 1;
         }
     }
     head_moves
