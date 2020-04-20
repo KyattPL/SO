@@ -97,6 +97,30 @@ fn generate_requests(mut num_of_requests: i32) -> Vec<Request> {
     requests
 }
 
+#[allow(dead_code)]
+fn generate_nonrandom_requests(num_of_requests: i32) -> Vec<Request> {
+    let mut requests: Vec<Request> = Vec::new();
+    let mut output: String = String::new();
+    let min = RT_TIME.0;
+    let max = RT_TIME.1;
+    let mut counter = min;
+    let mut rng = rand::thread_rng();
+    while num_of_requests != 0 {
+        let temp_block = rng.gen_range(0, BLOCK_SIZE);
+        requests.push(Request::new(temp_block, true, 0, counter));
+        output.push_str(&temp_block.to_string());
+        output.push_str(" ");
+        output.push_str(&counter.to_string());
+        output.push_str("\n");
+        counter += 1;
+        if counter == max {
+            counter = min;
+        }
+    }
+    write_to_file(output, &String::from("rt_ascending"));
+    requests
+}
+
 fn get_request_no() -> i32 {
     let mut input: String = String::new();
     loop {
