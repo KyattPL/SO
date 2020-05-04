@@ -194,8 +194,8 @@ fn random(requests: &[i32]) -> i32 {
 
 fn second_chance_lru(requests: &[i32]) -> i32 {
     let mut page_fault_no = 0;
-    let mut frames: [i32; FRAMES_NO as usize] = [0; FRAMES_NO as usize];
-    let mut frames_flags: [bool; FRAMES_NO as usize] = [true; FRAMES_NO as usize];
+    let mut frames: Vec<i32> = vec![0; FRAMES_NO as usize];
+    let mut frames_flags: Vec<bool> = vec![true; FRAMES_NO as usize];
     let mut initializer = 1;
     let mut current_request = FRAMES_NO;
 
@@ -215,12 +215,23 @@ fn second_chance_lru(requests: &[i32]) -> i32 {
                         iterator = 0;
                     }
                 } else {
-                    frames_flags[iterator as usize] = true;
-                    frames[iterator as usize] = *requests.get(current_request as usize).unwrap();
+                    frames_flags.remove(iterator as usize);
+                    frames_flags.push(true);
+                    frames.remove(iterator as usize);
+                    frames.push(*requests.get(current_request as usize).unwrap());
                     break;
                 }
             }
             page_fault_no += 1;
+        } else {
+            let temp = *requests.get(current_request as usize).unwrap();
+            let mut iterator = 0;
+            while iterator < FRAMES_NO {
+                if frames[iterator as usize] == temp {
+                    frames_flags[iterator as usize] = true;
+                }
+                iterator += 1;
+            }
         }
         current_request += 1;
     }
