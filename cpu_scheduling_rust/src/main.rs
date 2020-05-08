@@ -15,10 +15,13 @@ fn main() {
     let iterations = fcfs(&mut v);
     let mut str1: String = String::from("FCFS:\n");
     str1.push_str(&format!("Number of iterations: {}\n", iterations));
-    str1.push_str(&format!("Average time in queue: {}\n", average_time_in_queue(&v)));
+    str1.push_str(&format!(
+        "Average time in queue: {}\n",
+        average_time_in_queue(&v)
+    ));
     str1.push_str(&format!("Max time in queue: {}\n\n", max_time_in_queue(&v)));
 
-    print!("{}",str1);
+    print!("{}", str1);
 
     let mut v = read_from_file(&path);
     let (iterations, number_of_jumps) = rr(&mut v);
@@ -32,13 +35,20 @@ fn main() {
     let (iterations, starving_processes) = sjf_preemptive(&mut v);
     let mut str3: String = String::from("SFJ-preemptive:\n");
     str3.push_str(&format!("Number of iterations: {}\n", iterations));
-    str3.push_str(&format!("Average time in queue: {}\n", average_time_in_queue(&v)));
-    str3.push_str(&format!("Processes that have been starving: {}", starving_processes));
+    str3.push_str(&format!(
+        "Average time in queue: {}\n",
+        average_time_in_queue(&v)
+    ));
+    str3.push_str(&format!(
+        "Processes that have been starving: {}",
+        starving_processes
+    ));
 
     println!("{}", str3);
     save_results(format!("{}{}{}", str1, str2, str3));
 }
 
+#[allow(dead_code)]
 fn generate_processes(mut num_of_processes: i32) -> Vec<Process> {
     let mut processes: Vec<Process> = vec![];
     let mut rng = thread_rng();
@@ -54,7 +64,8 @@ fn generate_processes(mut num_of_processes: i32) -> Vec<Process> {
     processes
 }
 
-fn generate_nonrandom_input(path: &String) {
+#[allow(dead_code)]
+fn generate_nonrandom_input(path: &str) {
     let mut counter = 1;
     let mut string = String::from("");
     while counter <= 200 {
@@ -65,11 +76,12 @@ fn generate_nonrandom_input(path: &String) {
     write_to_file(string, path);
 }
 
-fn write_to_file(data: String, path: &String) {
+#[allow(dead_code)]
+fn write_to_file(data: String, path: &str) {
     fs::write(path, data).expect("Unable to write to the file");
 }
 
-fn read_from_file(path: &String) -> Vec<Process> {
+fn read_from_file(path: &str) -> Vec<Process> {
     let data = fs::read_to_string(path).expect("Unable to read the file");
     let mut processes: Vec<Process> = Vec::new();
     for line in data.lines() {
@@ -82,7 +94,7 @@ fn save_results(data: String) {
     fs::write("results.txt", data).expect("Unable to write to the file");
 }
 
-fn average_time_in_queue(processes: &Vec<Process>) -> f64 {
+fn average_time_in_queue(processes: &[Process]) -> f64 {
     let mut size = processes.len() - 1;
     let mut sum = 0;
     while size != 0 {
@@ -92,7 +104,7 @@ fn average_time_in_queue(processes: &Vec<Process>) -> f64 {
     sum as f64 / processes.len() as f64
 }
 
-fn max_time_in_queue(processes: &Vec<Process>) -> i32 {
+fn max_time_in_queue(processes: &[Process]) -> i32 {
     let mut max = 0;
     let mut size = processes.len() - 1;
     while size != 0 {
@@ -194,13 +206,12 @@ fn rr(processes: &mut Vec<Process>) -> (i32, i32) {
     (iterations, number_of_jumps)
 }
 
-fn sjf_preemptive(processes: &mut Vec<Process>) -> (i32,i32) {
+fn sjf_preemptive(processes: &mut Vec<Process>) -> (i32, i32) {
     let mut queue = Queue::new(vec![0]);
     let mut rng = rand::thread_rng();
     let mut process_no = 1;
     let mut iterations = 0;
     let mut starving_processes = 0;
-    
     loop {
         if rng.gen_range(0, 100) >= 97 && process_no < processes.len() as i32 {
             queue.push_process(process_no);
@@ -214,7 +225,7 @@ fn sjf_preemptive(processes: &mut Vec<Process>) -> (i32,i32) {
             let processed_task = processes.get_mut(first_in_queue).unwrap();
             processed_task.add_time_processed();
             if processed_task.get_time_processed() == processed_task.get_task_time() {
-                if processed_task.get_task_time() >= 5*processed_task.get_time_in_queue() {
+                if processed_task.get_task_time() >= 5 * processed_task.get_time_in_queue() {
                     starving_processes += 1;
                 }
                 queue.remove(0);

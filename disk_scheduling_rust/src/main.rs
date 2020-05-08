@@ -4,6 +4,7 @@ mod request;
 use queue::Queue;
 use rand::prelude::*;
 use request::Request;
+use std::cmp::Ordering;
 use std::fs;
 use std::io::*;
 
@@ -176,15 +177,18 @@ fn fcfs(requests: &mut Vec<Request>) -> i32 {
             let first_in_queue: usize = queue.list[0] as usize;
             let processed_request = requests.get(first_in_queue).unwrap();
             let current_block = processed_request.get_block_num();
-            if current_block > head_position {
-                head_position += 1;
-                head_moves += 1;
-            } else if current_block < head_position {
-                head_position -= 1;
-                head_moves += 1;
-            } else {
-                queue.remove(0);
-                //println!("queu size: {}", queue.size());
+            match current_block.cmp(&head_position) {
+                Ordering::Greater => {
+                    head_position += 1;
+                    head_moves += 1;
+                }
+                Ordering::Less => {
+                    head_position -= 1;
+                    head_moves += 1;
+                }
+                Ordering::Equal => {
+                    queue.remove(0);
+                }
             }
         }
 
@@ -214,17 +218,21 @@ fn sstf(requests: &mut Vec<Request>) -> (i32, i32) {
             let first_in_queue: usize = queue.list[0] as usize;
             let processed_request = requests.get(first_in_queue).unwrap();
             let current_block = processed_request.get_block_num();
-            if current_block > head_position {
-                head_position += 1;
-                head_moves += 1;
-            } else if current_block < head_position {
-                head_position -= 1;
-                head_moves += 1;
-            } else {
-                if processed_request.get_time_in_queue() > SSTF_STARVING {
-                    starving_requests += 1;
+            match current_block.cmp(&head_position) {
+                Ordering::Greater => {
+                    head_position += 1;
+                    head_moves += 1;
                 }
-                queue.remove(0);
+                Ordering::Less => {
+                    head_position -= 1;
+                    head_moves += 1;
+                }
+                Ordering::Equal => {
+                    if processed_request.get_time_in_queue() > SSTF_STARVING {
+                        starving_requests += 1;
+                    }
+                    queue.remove(0);
+                }
             }
         }
 
@@ -265,12 +273,10 @@ fn cscan(requests: &mut Vec<Request>, is_c: bool) -> i32 {
                 if head_position > BLOCK_SIZE - 1 {
                     head_position = 0;
                 }
-            } else {
-                if head_position == BLOCK_SIZE - 1 {
-                    increment = -1;
-                } else if head_position == 0 {
-                    increment = 1;
-                }
+            } else if head_position == BLOCK_SIZE - 1 {
+                increment = -1;
+            } else if head_position == 0 {
+                increment = 1;
             }
 
             if disk_array[head_position as usize] != 0 {
@@ -319,15 +325,19 @@ fn edf(requests: &mut Vec<Request>) -> (i32, i32, i32) {
                 let first_in_queue = queue_rt.list[0] as usize;
                 let processed_request = requests.get(first_in_queue).unwrap();
                 let current_block = processed_request.get_block_num();
-                if current_block > head_position {
-                    head_position += 1;
-                    head_moves += 1;
-                } else if current_block < head_position {
-                    head_position -= 1;
-                    head_moves += 1;
-                } else {
-                    realtime_handled += 1;
-                    queue_rt.remove(0);
+                match current_block.cmp(&head_position) {
+                    Ordering::Greater => {
+                        head_position += 1;
+                        head_moves += 1;
+                    }
+                    Ordering::Less => {
+                        head_position -= 1;
+                        head_moves += 1;
+                    }
+                    Ordering::Equal => {
+                        realtime_handled += 1;
+                        queue_rt.remove(0);
+                    }
                 }
                 let mut queue_size = queue_rt.size() as i32;
                 let mut i = 0;
@@ -356,14 +366,18 @@ fn edf(requests: &mut Vec<Request>) -> (i32, i32, i32) {
                 let first_in_queue = queue_basic.list[0] as usize;
                 let processed_request = requests.get(first_in_queue).unwrap();
                 let current_block = processed_request.get_block_num();
-                if current_block > head_position {
-                    head_position += 1;
-                    head_moves += 1;
-                } else if current_block < head_position {
-                    head_position -= 1;
-                    head_moves += 1;
-                } else {
-                    queue_basic.remove(0);
+                match current_block.cmp(&head_position) {
+                    Ordering::Greater => {
+                        head_position += 1;
+                        head_moves += 1;
+                    }
+                    Ordering::Less => {
+                        head_position -= 1;
+                        head_moves += 1;
+                    }
+                    Ordering::Equal => {
+                        queue_basic.remove(0);
+                    }
                 }
             }
         }
@@ -424,15 +438,19 @@ fn fdscan(requests: &mut Vec<Request>) -> (i32, i32, i32) {
                     .get(queue_rt.list[0] as usize)
                     .unwrap()
                     .get_block_num();
-                if current_block > head_position {
-                    head_position += 1;
-                    head_moves += 1;
-                } else if current_block < head_position {
-                    head_position -= 1;
-                    head_moves += 1;
-                } else {
-                    realtime_handled += queue_rt.remove_at_pos(head_position, requests);
-                    queue_rt.rt_insertion_sort(requests);
+                match current_block.cmp(&head_position) {
+                    Ordering::Greater => {
+                        head_position += 1;
+                        head_moves += 1;
+                    }
+                    Ordering::Less => {
+                        head_position -= 1;
+                        head_moves += 1;
+                    }
+                    Ordering::Equal => {
+                        realtime_handled += queue_rt.remove_at_pos(head_position, requests);
+                        queue_rt.rt_insertion_sort(requests);
+                    }
                 }
                 let mut queue_size = queue_rt.size() as i32;
                 let mut i = 0;

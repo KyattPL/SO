@@ -1,6 +1,6 @@
-FCFS number of head moves: 6665931
-SSTF number of head moves: 5822366, this many requests have starved: 23010
-C-SCAN number of head moves: 5840141
-SCAN number of head moves: 6631850
-EDF number of head moves: 6536109, RT handled: 6510, RT starved: 3484
-FD-SCAN number of head moves: 5836133, RT handled: 4140, RT starved: 5854
+FCFS number of head moves: 6695157
+SSTF number of head moves: 5840393, this many requests have starved: 23408
+C-SCAN number of head moves: 5842758
+SCAN number of head moves: 6622229
+EDF number of head moves: 6567787, RT handled: 6594, RT starved: 3511
+FD-SCAN number of head moves: 5832481, RT handled: 4130, RT starved: 5975

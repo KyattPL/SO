@@ -276,7 +276,7 @@ fn second_chance_lru(requests: &[i32]) -> i32 {
         if !frames.contains(requests.get(current_request as usize).unwrap()) {
             let mut iterator = 0;
             while iterator < FRAMES_NO {
-                if frames_flags[iterator as usize] == true {
+                if frames_flags[iterator as usize] {
                     frames_flags[iterator as usize] = false;
                     iterator += 1;
                     if iterator == FRAMES_NO {
