@@ -1,13 +1,13 @@
 use rand::prelude::*;
 use std::fs;
 
-const FRAMES_NO: i32 = 4;
-const PAGE_MAX: i32 = 100;
+const FRAMES_NO: i32 = 10;
+const PAGE_MAX: i32 = 30;
 const REQUESTS_NO: i32 = 100_000;
 const LOCAL_CHANCE: i32 = 25;
 
 fn main() {
-    let requests = generate_requests();
+    let requests = generate_nonrandom_requests();
     println!("FIFO no. of page faults: {}", fifo(&requests));
     println!("OPT no. of page faults: {}", opt(&requests));
     println!("LRU no. of page faults: {}", lru(&requests));
@@ -50,12 +50,34 @@ fn generate_requests() -> Vec<i32> {
         stringified.push_str("\n");
         current_request += 1;
     }
-    write_to_file(stringified);
+    write_to_file(String::from("data.txt"), stringified);
     requests
 }
 
-fn write_to_file(data: String) {
-    fs::write("data.txt", data).expect("Can't write to the file");
+#[allow(dead_code)]
+fn generate_nonrandom_requests() -> Vec<i32> {
+    let mut current_request = 1;
+    let mut requests = Vec::new();
+    let mut increment = PAGE_MAX;
+    let mut stringified: String = String::new();
+
+    while current_request <= REQUESTS_NO {
+        let request = increment;
+        increment -= 1;
+        if increment == 0 {
+            increment = PAGE_MAX;
+        }
+        stringified.push_str(&request.to_string());
+        requests.push(request);
+        stringified.push_str("\n");
+        current_request += 1;
+    }
+    write_to_file(String::from("descending.txt"), stringified);
+    requests
+}
+
+fn write_to_file(file_name: String, data: String) {
+    fs::write(file_name, data).expect("Can't write to the file");
 }
 
 fn fifo(requests: &[i32]) -> i32 {
