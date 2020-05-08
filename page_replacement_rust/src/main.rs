@@ -1,5 +1,6 @@
 use rand::prelude::*;
 use std::fs;
+use std::io::stdin;
 
 const FRAMES_NO: i32 = 10;
 const PAGE_MAX: i32 = 30;
@@ -7,7 +8,21 @@ const REQUESTS_NO: i32 = 100_000;
 const LOCAL_CHANCE: i32 = 25;
 
 fn main() {
-    let requests = generate_nonrandom_requests();
+    let mut input: String = String::new();
+    let requests: Vec<i32>;
+    println!("1. Generate new requests");
+    println!("2. Read requests from file");
+    while input.trim() != "1" && input.trim() != "2" {
+        std::io::stdin().read_line(&mut input).unwrap();
+    }
+    match input.trim().parse::<i32>().unwrap() {
+        1 => {
+            println!("How many requests: ");
+            requests = generate_requests(get_request_no());
+        }
+        2 => requests = read_from_file(),
+        _ => panic!("Unallowed state"),
+    }
     println!("FIFO no. of page faults: {}", fifo(&requests));
     println!("OPT no. of page faults: {}", opt(&requests));
     println!("LRU no. of page faults: {}", lru(&requests));
@@ -18,7 +33,7 @@ fn main() {
     );
 }
 
-fn generate_requests() -> Vec<i32> {
+fn generate_requests(requests_no: i32) -> Vec<i32> {
     let mut rng = rand::thread_rng();
     let mut current_request = 1;
     let mut requests = Vec::new();
@@ -28,7 +43,13 @@ fn generate_requests() -> Vec<i32> {
     let mut upper_boundary = 0;
     let mut stringified: String = String::new();
 
-    while current_request <= REQUESTS_NO {
+    let requests_no = if requests_no == 0 {
+        REQUESTS_NO
+    } else {
+        requests_no
+    };
+
+    while current_request <= requests_no {
         if rng.gen_range(0, 100) <= chance && length_of_local == 0 {
             length_of_local = rng.gen_range(5, 100);
             chance = LOCAL_CHANCE;
@@ -54,30 +75,55 @@ fn generate_requests() -> Vec<i32> {
     requests
 }
 
+fn get_request_no() -> i32 {
+    let mut input: String = String::new();
+    loop {
+        stdin().read_line(&mut input).unwrap();
+        let num_of_requests = input.trim().parse::<i32>().unwrap();
+        if num_of_requests > 0 {
+            return num_of_requests;
+        }
+    }
+}
+
 #[allow(dead_code)]
 fn generate_nonrandom_requests() -> Vec<i32> {
     let mut current_request = 1;
     let mut requests = Vec::new();
-    let mut increment = PAGE_MAX;
+    let mut increment = 1;
     let mut stringified: String = String::new();
 
     while current_request <= REQUESTS_NO {
         let request = increment;
-        increment -= 1;
-        if increment == 0 {
-            increment = PAGE_MAX;
+        increment += 1;
+        if increment == FRAMES_NO + 1 {
+            increment = 1;
         }
         stringified.push_str(&request.to_string());
         requests.push(request);
         stringified.push_str("\n");
         current_request += 1;
     }
-    write_to_file(String::from("descending.txt"), stringified);
+    write_to_file(String::from("ascending_min.txt"), stringified);
     requests
 }
 
 fn write_to_file(file_name: String, data: String) {
     fs::write(file_name, data).expect("Can't write to the file");
+}
+
+fn read_from_file() -> Vec<i32> {
+    let mut input: String = String::new();
+    println!("Name of the file: ");
+    stdin().read_line(&mut input).unwrap();
+    let input = input.trim();
+    let data = fs::read_to_string(input).expect("Unable to read the file");
+    let mut requests: Vec<i32> = Vec::new();
+    for line in data.lines() {
+        let request: i32 = line.parse::<i32>().unwrap();
+        requests.push(request);
+    }
+    requests
 }
 
 fn fifo(requests: &[i32]) -> i32 {
