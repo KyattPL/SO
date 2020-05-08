@@ -81,11 +81,12 @@ fn generate_requests(mut num_of_requests: i32) -> Vec<Request> {
         let temp_block = rng.gen_range(0, BLOCK_SIZE);
         let temp_realtime = rng.gen_range(1, 100);
         let mut is_realtime: bool = false;
-        let mut time_to_handle: i32 = 0;
-        if temp_realtime <= RT_PERCENTAGE {
+        let time_to_handle: i32 = if temp_realtime <= RT_PERCENTAGE {
             is_realtime = true;
-            time_to_handle = rng.gen_range(RT_TIME.0, RT_TIME.1);
-        }
+            rng.gen_range(RT_TIME.0, RT_TIME.1)
+        } else {
+            0
+        };
         string.push_str(&temp_block.to_string());
         string.push_str(" ");
         string.push_str(&time_to_handle.to_string());
@@ -134,7 +135,7 @@ fn get_request_no() -> i32 {
     }
 }
 
-fn write_to_file(data: String, path: &String) {
+fn write_to_file(data: String, path: &str) {
     fs::write(path, data).expect("Unable to write to the file");
 }
 
@@ -146,7 +147,7 @@ fn read_from_file() -> Vec<Request> {
     let data = fs::read_to_string(input).expect("Unable to read the file");
     let mut requests: Vec<Request> = Vec::new();
     for line in data.lines() {
-        let request: Vec<&str> = line.split(" ").collect();
+        let request: Vec<&str> = line.split(' ').collect();
         let is_rt: bool = request[1] != "0";
         let request_int: (i32, i32) = (
             request[0].parse::<i32>().unwrap(),

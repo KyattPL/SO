@@ -39,9 +39,7 @@ impl Queue {
                 .distance_to_head(head_pos);
 
             while inner_counter > 1 && pos1 > pos2 {
-                let temp_val = self.list[inner_counter - 1];
-                self.list[inner_counter - 1] = self.list[inner_counter];
-                self.list[inner_counter] = temp_val;
+                self.list.swap(inner_counter - 1, inner_counter);
                 inner_counter -= 1;
                 pos1 = requests
                     .get(self.list[inner_counter - 1] as usize)
@@ -70,9 +68,7 @@ impl Queue {
                 .time_remaining();
 
             while inner_counter > 1 && pos1 > pos2 {
-                let temp_val = self.list[inner_counter - 1];
-                self.list[inner_counter - 1] = self.list[inner_counter];
-                self.list[inner_counter] = temp_val;
+                self.list.swap(inner_counter - 1, inner_counter);
                 inner_counter -= 1;
                 pos1 = requests
                     .get(self.list[inner_counter - 1] as usize)
@@ -89,13 +85,11 @@ impl Queue {
 
     pub fn remove_at_pos(&mut self, head_pos: i32, requests: &mut Vec<Request>) -> i32 {
         let mut temp_vec: Vec<i32> = vec![];
-        let mut i = 0;
-        for index in &self.list {
+        for (i, index) in self.list.iter().enumerate() {
             let temp_req = requests.get(*index as usize).unwrap();
             if temp_req.get_block_num() == head_pos {
-                temp_vec.push(i);
+                temp_vec.push(i as i32);
             }
-            i += 1;
         }
         let mut counter = 0;
         temp_vec.reverse();
