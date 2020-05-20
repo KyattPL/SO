@@ -6,6 +6,7 @@ const FRAMES_NO: i32 = 10;
 const PAGE_MAX: i32 = 30;
 const REQUESTS_NO: i32 = 100_000;
 const LOCAL_CHANCE: i32 = 25;
+const LENGTH_OF_LOCAL_MAX: i32 = 100;
 
 fn main() {
     let mut input: String = String::new();
@@ -51,7 +52,7 @@ fn generate_requests(requests_no: i32) -> Vec<i32> {
 
     while current_request <= requests_no {
         if rng.gen_range(0, 100) <= chance && length_of_local == 0 {
-            length_of_local = rng.gen_range(5, 100);
+            length_of_local = rng.gen_range(5, LENGTH_OF_LOCAL_MAX);
             chance = LOCAL_CHANCE;
             lower_boundary = rng.gen_range(1, PAGE_MAX / 2);
             upper_boundary = rng.gen_range(PAGE_MAX / 2 + 1, PAGE_MAX + 1);
