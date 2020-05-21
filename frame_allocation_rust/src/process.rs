@@ -63,41 +63,7 @@ impl Process {
         self.last_frame = last_frame;
     }
 
-    pub fn lru_chunk(&mut self, frames: &mut [i32]) {
-        let mut initializer = 1;
-        let frames_len = frames.len();
-        let requests_no = self.requests.len();
-        let mut current_request = frames_len;
-        while initializer <= frames_len {
-            frames[(initializer - 1) as usize] =
-                *self.requests.get((initializer - 1) as usize).unwrap();
-            initializer += 1;
-        }
-        while current_request < requests_no {
-            if !frames.contains(self.requests.get(current_request as usize).unwrap()) {
-                let mut min = requests_no;
-                let mut index = 0;
-                let mut min_index = 0;
-                let mut scan_index = current_request;
-                while index < frames_len {
-                    if frames[index as usize] == *self.requests.get(scan_index as usize).unwrap() {
-                        if min > scan_index {
-                            min = scan_index;
-                            min_index = index;
-                        }
-                        index += 1;
-                        scan_index = current_request;
-                        continue;
-                    }
-                    scan_index -= 1;
-                    if scan_index as i32 == -1 {
-                        min_index = index;
-                        break;
-                    }
-                }
-                frames[min_index as usize] = *self.requests.get(current_request as usize).unwrap();
-            }
-            current_request += 1;
-        }
+    pub fn frames_no(&self) -> i32 {
+        self.last_frame - self.first_frame + 1
     }
 }

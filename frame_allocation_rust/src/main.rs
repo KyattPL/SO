@@ -7,12 +7,13 @@ const FRAMES_NO: i32 = 30;
 const PROCESSES_NO: i32 = 10;
 
 fn main() {
-    let frames: [i32; FRAMES_NO as usize] = [0; FRAMES_NO as usize];
     let mut processes: Vec<Process> = generate_processes();
     generate_requests(&mut processes);
     let requests_no = get_requests_no(&mut processes);
-    let queue = generate_global_queue(&mut processes, requests_no);
     equal_allocation(&mut processes);
+    let page_faults = lru(&mut processes, requests_no);
+    println!("requests no: {}", requests_no);
+    println!("page faults: {}", page_faults);
 }
 
 fn generate_processes() -> Vec<Process> {
@@ -45,28 +46,75 @@ fn get_requests_no(processes: &mut Vec<Process>) -> i32 {
     requests_sum
 }
 
-fn generate_global_queue(processes: &mut Vec<Process>, requests_no: i32) -> Vec<i32> {
-    let mut queue: Vec<i32> = Vec::new();
+fn lru(processes: &mut Vec<Process>, requests_no: i32) -> i32 {
+    let mut frames: [i32; FRAMES_NO as usize] = [0; FRAMES_NO as usize];
+    let mut initializer = 0;
     let mut rng = rand::thread_rng();
-    let mut current_processes: [i32; PROCESSES_NO as usize] = [0; PROCESSES_NO as usize];
+    let mut current_requests: [i32; PROCESSES_NO as usize] = [0; PROCESSES_NO as usize];
+    let mut current_process = 0;
     let mut counter = 0;
+    let mut page_faults = 0;
+
+    while initializer < FRAMES_NO {
+        let temp = processes.get(current_process as usize).unwrap();
+        if current_requests[current_process as usize] != temp.frames_no() {
+            frames[initializer as usize] =
+                temp.requests[current_requests[current_process as usize] as usize];
+            current_requests[current_process as usize] += 1;
+        } else {
+            counter += current_requests[current_process as usize];
+            current_process += 1;
+            continue;
+        }
+        initializer += 1;
+    }
+
     while counter < requests_no {
         let temp = rng.gen_range(0, PROCESSES_NO);
         let temp_proc = processes.get(temp as usize).unwrap();
-        if current_processes[temp as usize] != temp_proc.requests.len() as i32 {
-            queue.push(
-                *temp_proc
+        if temp_proc.requests.len() as i32 != current_requests[temp as usize] {
+            if !frames.contains(
+                temp_proc
                     .requests
-                    .get(current_processes[temp as usize] as usize)
+                    .get(current_requests[temp as usize] as usize)
                     .unwrap(),
-            );
-            current_processes[temp as usize] += 1;
-        } else {
-            continue;
+            ) {
+                let mut min = requests_no;
+                let mut index = temp_proc.first_frame;
+                let mut min_index = temp_proc.first_frame;
+                let mut scan_index = current_requests[temp as usize];
+                while index < temp_proc.last_frame {
+                    if frames[index as usize]
+                        == *temp_proc.requests.get(scan_index as usize).unwrap()
+                    {
+                        if min > scan_index {
+                            min = scan_index;
+                            min_index = index;
+                        }
+                        index += 1;
+                        scan_index = current_requests[temp as usize];
+                        continue;
+                    }
+                    scan_index -= 1;
+                    if scan_index == -1 {
+                        min_index = index;
+                        break;
+                    }
+                }
+                frames[min_index as usize] = *temp_proc
+                    .requests
+                    .get(current_requests[temp as usize] as usize)
+                    .unwrap();
+                current_requests[temp as usize] += 1;
+                page_faults += 1;
+            } else {
+                current_requests[temp as usize] += 1;
+            }
         }
         counter += 1;
     }
-    queue
+    println!("{}", counter);
+    page_faults
 }
 
 fn equal_allocation(processes: &mut Vec<Process>) {
