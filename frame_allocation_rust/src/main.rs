@@ -9,11 +9,12 @@ const PROCESSES_NO: i32 = 10;
 fn main() {
     let mut processes: Vec<Process> = generate_processes();
     generate_requests(&mut processes);
+    proportional_allocation(&mut processes);
     let requests_no = get_requests_no(&mut processes);
-    equal_allocation(&mut processes);
+    //equal_allocation(&mut processes);
     let page_faults = lru(&mut processes, requests_no);
-    println!("requests no: {}", requests_no);
-    println!("page faults: {}", page_faults);
+    println!("Requests no: {}", requests_no);
+    print_page_faults(page_faults);
 }
 
 fn generate_processes() -> Vec<Process> {
@@ -46,14 +47,33 @@ fn get_requests_no(processes: &mut Vec<Process>) -> i32 {
     requests_sum
 }
 
-fn lru(processes: &mut Vec<Process>, requests_no: i32) -> i32 {
+fn print_page_faults(page_faults: [i32; PROCESSES_NO as usize]) {
+    let mut iterator = 1;
+    let mut sum = 0;
+    while iterator <= page_faults.len() {
+        println!(
+            "Process no: {}, no page faults: {}",
+            iterator,
+            page_faults[iterator - 1]
+        );
+        sum += page_faults[iterator - 1];
+        iterator += 1;
+    }
+    println!("Sum of all page faults: {}", sum);
+    println!(
+        "Avg page faults per process: {}",
+        (sum as f32) / (PROCESSES_NO as f32)
+    );
+}
+
+fn lru(processes: &mut Vec<Process>, requests_no: i32) -> [i32; PROCESSES_NO as usize] {
     let mut frames: [i32; FRAMES_NO as usize] = [0; FRAMES_NO as usize];
     let mut initializer = 0;
     let mut rng = rand::thread_rng();
     let mut current_requests: [i32; PROCESSES_NO as usize] = [0; PROCESSES_NO as usize];
     let mut current_process = 0;
     let mut counter = 0;
-    let mut page_faults = 0;
+    let mut page_faults: [i32; PROCESSES_NO as usize] = [0; PROCESSES_NO as usize];
 
     while initializer < FRAMES_NO {
         let temp = processes.get(current_process as usize).unwrap();
@@ -106,17 +126,17 @@ fn lru(processes: &mut Vec<Process>, requests_no: i32) -> i32 {
                     .get(current_requests[temp as usize] as usize)
                     .unwrap();
                 current_requests[temp as usize] += 1;
-                page_faults += 1;
+                page_faults[temp as usize] += 1;
             } else {
                 current_requests[temp as usize] += 1;
             }
         }
         counter += 1;
     }
-    println!("{}", counter);
     page_faults
 }
 
+#[allow(dead_code)]
 fn equal_allocation(processes: &mut Vec<Process>) {
     let coeff: i32 = FRAMES_NO / PROCESSES_NO;
     let mut current_frame = 0;
@@ -131,5 +151,55 @@ fn equal_allocation(processes: &mut Vec<Process>) {
         } else {
             proc.set_last_frame(current_frame - 1);
         }
+    }
+}
+
+fn sum_of_array(arr: &[f64]) -> i32 {
+    let mut iter = 0;
+    let mut sum = 0;
+    while iter < arr.len() {
+        sum += arr[iter as usize].round() as i32;
+        iter += 1;
+    }
+    sum
+}
+
+#[allow(dead_code)]
+fn proportional_allocation(processes: &mut Vec<Process>) {
+    let mut rng = rand::thread_rng();
+    let mut iterator = 0;
+    let mut sum_all_pages = 0;
+    let mut current_frame = 0;
+    while iterator < processes.len() {
+        sum_all_pages += processes[iterator].pages_no();
+        iterator += 1;
+    }
+    let mut coeffs: Vec<f64> = Vec::new();
+    iterator = 0;
+    let mut sum_all_frames = 0;
+    while iterator < processes.len() {
+        let coeff =
+            (processes[iterator].pages_no() as f64) / (sum_all_pages as f64) * (FRAMES_NO as f64);
+        coeffs.push(coeff);
+        sum_all_frames += coeff.round() as i32;
+        iterator += 1;
+    }
+
+    while sum_all_frames != FRAMES_NO {
+        let temp = rng.gen_range(0, PROCESSES_NO);
+        if sum_all_frames > FRAMES_NO {
+            coeffs[temp as usize] -= 1.0;
+        } else {
+            coeffs[temp as usize] += 1.0;
+        }
+        sum_all_frames = sum_of_array(&coeffs);
+    }
+
+    iterator = 0;
+    while iterator < processes.len() {
+        processes[iterator as usize].set_first_frame(current_frame);
+        current_frame = coeffs[iterator].round() as i32;
+        processes[iterator as usize].set_last_frame(current_frame - 1);
+        iterator += 1;
     }
 }

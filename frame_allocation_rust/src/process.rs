@@ -66,4 +66,8 @@ impl Process {
     pub fn frames_no(&self) -> i32 {
         self.last_frame - self.first_frame + 1
     }
+
+    pub fn pages_no(&self) -> i32 {
+        self.page_max - self.page_min + 1
+    }
 }
