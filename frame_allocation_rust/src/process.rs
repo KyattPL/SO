@@ -4,8 +4,12 @@ pub struct Process {
     page_min: i32,
     page_max: i32,
     pub requests: Vec<i32>,
-    pub first_frame: i32,
-    pub last_frame: i32,
+    pub frames: Vec<i32>,
+    first_frame: i32,
+    last_frame: i32,
+    pub time_window: i32,
+    pub page_faults: i32,
+    pub is_stopped: bool,
 }
 
 impl Process {
@@ -14,8 +18,12 @@ impl Process {
             page_min,
             page_max,
             requests: vec![],
+            frames: vec![],
             first_frame: 0,
             last_frame: 0,
+            time_window: 0,
+            page_faults: 0,
+            is_stopped: false,
         }
     }
 
@@ -63,11 +71,19 @@ impl Process {
         self.last_frame = last_frame;
     }
 
+    pub fn get_last_frame(&self) -> i32 {
+        self.last_frame
+    }
+
     pub fn frames_no(&self) -> i32 {
         self.last_frame - self.first_frame + 1
     }
 
     pub fn pages_no(&self) -> i32 {
         self.page_max - self.page_min + 1
+    }
+
+    pub fn calculate_pff(&self) -> f32 {
+        (self.page_faults as f32) / (self.time_window as f32)
     }
 }

@@ -5,13 +5,15 @@ use rand::prelude::*;
 
 const FRAMES_NO: i32 = 30;
 const PROCESSES_NO: i32 = 10;
+const UPPER_PFF: f32 = 0.6;
+const LOWER_PFF: f32 = 0.3;
 
 fn main() {
     let mut processes: Vec<Process> = generate_processes();
     generate_requests(&mut processes);
-    proportional_allocation(&mut processes);
+    //proportional_allocation(&mut processes);
     let requests_no = get_requests_no(&mut processes);
-    //equal_allocation(&mut processes);
+    equal_allocation(&mut processes);
     let page_faults = lru(&mut processes, requests_no);
     println!("Requests no: {}", requests_no);
     print_page_faults(page_faults);
@@ -74,6 +76,7 @@ fn lru(processes: &mut Vec<Process>, requests_no: i32) -> [i32; PROCESSES_NO as 
     let mut current_process = 0;
     let mut counter = 0;
     let mut page_faults: [i32; PROCESSES_NO as usize] = [0; PROCESSES_NO as usize];
+    let mut free_frames: Vec<i32> = Vec::new();
 
     while initializer < FRAMES_NO {
         let temp = processes.get(current_process as usize).unwrap();
@@ -89,9 +92,26 @@ fn lru(processes: &mut Vec<Process>, requests_no: i32) -> [i32; PROCESSES_NO as 
         initializer += 1;
     }
 
+    let mut debugger = 0;
+
     while counter < requests_no {
+        debugger += 1;
         let temp = rng.gen_range(0, PROCESSES_NO);
-        let temp_proc = processes.get(temp as usize).unwrap();
+        if debugger % 1000 == 0 {
+            print_motherfucking_garbo(processes, &free_frames);
+        }
+
+        let temp_proc = processes.get_mut(temp as usize).unwrap();
+
+        if temp_proc.is_stopped {
+            if free_frames.is_empty() {
+                continue;
+            } else {
+                add_new_frame(temp_proc, &mut free_frames);
+            }
+        }
+
+        temp_proc.time_window += 1;
         if temp_proc.requests.len() as i32 != current_requests[temp as usize] {
             if !frames.contains(
                 temp_proc
@@ -99,11 +119,13 @@ fn lru(processes: &mut Vec<Process>, requests_no: i32) -> [i32; PROCESSES_NO as 
                     .get(current_requests[temp as usize] as usize)
                     .unwrap(),
             ) {
+                let mut frame_counter = 0;
                 let mut min = requests_no;
-                let mut index = temp_proc.first_frame;
-                let mut min_index = temp_proc.first_frame;
+                let mut index = temp_proc.frames[frame_counter];
+                let mut min_index = temp_proc.frames[temp_proc.frames.len() - 1];
                 let mut scan_index = current_requests[temp as usize];
-                while index < temp_proc.last_frame {
+
+                while index != temp_proc.frames[temp_proc.frames.len() - 1] {
                     if frames[index as usize]
                         == *temp_proc.requests.get(scan_index as usize).unwrap()
                     {
@@ -111,7 +133,8 @@ fn lru(processes: &mut Vec<Process>, requests_no: i32) -> [i32; PROCESSES_NO as 
                             min = scan_index;
                             min_index = index;
                         }
-                        index += 1;
+                        frame_counter += 1;
+                        index = temp_proc.frames[frame_counter];
                         scan_index = current_requests[temp as usize];
                         continue;
                     }
@@ -127,9 +150,13 @@ fn lru(processes: &mut Vec<Process>, requests_no: i32) -> [i32; PROCESSES_NO as 
                     .unwrap();
                 current_requests[temp as usize] += 1;
                 page_faults[temp as usize] += 1;
+                temp_proc.page_faults += 1;
             } else {
                 current_requests[temp as usize] += 1;
             }
+        }
+        if temp_proc.time_window == 20 {
+            page_fault_frequency(temp_proc, &mut free_frames);
         }
         counter += 1;
     }
@@ -141,16 +168,30 @@ fn equal_allocation(processes: &mut Vec<Process>) {
     let coeff: i32 = FRAMES_NO / PROCESSES_NO;
     let mut current_frame = 0;
     let mut modulo = FRAMES_NO % PROCESSES_NO;
-    for proc in processes {
-        proc.set_first_frame(current_frame);
+    let mut iterator = 0;
+    while iterator < processes.len() {
+        processes[iterator].set_first_frame(current_frame);
         current_frame += coeff;
         if modulo != 0 {
-            proc.set_last_frame(current_frame);
+            processes[iterator].set_last_frame(current_frame);
             current_frame += 1;
             modulo -= 1;
         } else {
-            proc.set_last_frame(current_frame - 1);
+            processes[iterator].set_last_frame(current_frame - 1);
         }
+        iterator += 1;
+    }
+    iterator = 0;
+    let mut current_process = 0;
+    while current_process < PROCESSES_NO {
+        let temp = processes[current_process as usize].get_last_frame();
+        while iterator <= temp as usize {
+            processes[current_process as usize]
+                .frames
+                .push(iterator as i32);
+            iterator += 1;
+        }
+        current_process += 1;
     }
 }
 
@@ -198,8 +239,62 @@ fn proportional_allocation(processes: &mut Vec<Process>) {
     iterator = 0;
     while iterator < processes.len() {
         processes[iterator as usize].set_first_frame(current_frame);
-        current_frame = coeffs[iterator].round() as i32;
+        current_frame += coeffs[iterator].round() as i32;
         processes[iterator as usize].set_last_frame(current_frame - 1);
+        iterator += 1;
+    }
+
+    iterator = 0;
+    let mut current_process = 0;
+    while current_process < PROCESSES_NO {
+        let temp = processes[current_process as usize].get_last_frame();
+        while iterator <= temp as usize {
+            processes[current_process as usize]
+                .frames
+                .push(iterator as i32);
+            iterator += 1;
+        }
+        current_process += 1;
+    }
+}
+
+fn page_fault_frequency(process: &mut Process, free_frames: &mut Vec<i32>) {
+    let pff = process.calculate_pff();
+    process.time_window = 0;
+    process.page_faults = 0;
+
+    if pff < LOWER_PFF && process.frames.len() > 1 {
+        free_frames.push(process.frames.pop().unwrap());
+    } else if pff > UPPER_PFF {
+        if !free_frames.is_empty() {
+            process.frames.push(free_frames.pop().unwrap());
+        } else {
+            process.is_stopped = true;
+        }
+    }
+}
+
+fn add_new_frame(process: &mut Process, free_frames: &mut Vec<i32>) {
+    process.frames.push(free_frames.pop().unwrap());
+    process.is_stopped = false;
+}
+
+fn print_motherfucking_garbo(processes: &Vec<Process>, free_frames: &Vec<i32>) {
+    let mut iterator = 0;
+    while iterator < processes.len() {
+        let mut inner_it = 0;
+        print!("Proc {}: ", iterator);
+        while inner_it < processes[iterator].frames.len() {
+            print!("{} ", processes[iterator].frames[inner_it]);
+            inner_it += 1;
+        }
+        println!();
+        iterator += 1;
+    }
+    iterator = 0;
+    println!("Free frames: ");
+    while iterator < free_frames.len() {
+        print!("{} ", free_frames[iterator]);
         iterator += 1;
     }
 }
