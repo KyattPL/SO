@@ -270,6 +270,7 @@ fn page_fault_frequency(process: &mut Process, free_frames: &mut Vec<i32>) {
             process.frames.push(free_frames.pop().unwrap());
         } else {
             process.is_stopped = true;
+            stop_process(process, free_frames);
         }
     }
 }
@@ -277,6 +278,14 @@ fn page_fault_frequency(process: &mut Process, free_frames: &mut Vec<i32>) {
 fn add_new_frame(process: &mut Process, free_frames: &mut Vec<i32>) {
     process.frames.push(free_frames.pop().unwrap());
     process.is_stopped = false;
+}
+
+fn stop_process(process: &mut Process, free_frames: &mut Vec<i32>) {
+    let mut iterator = 0;
+    while iterator < process.frames.len() {
+        free_frames.push(process.frames.pop().unwrap());
+        iterator += 1;
+    }
 }
 
 fn print_motherfucking_garbo(processes: &Vec<Process>, free_frames: &Vec<i32>) {
