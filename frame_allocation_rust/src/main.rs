@@ -2,6 +2,7 @@ mod process;
 
 use process::Process;
 use rand::prelude::*;
+use std::collections::HashSet;
 
 const FRAMES_NO: i32 = 30;
 const PROCESSES_NO: i32 = 10;
@@ -11,12 +12,12 @@ const LOWER_PFF: f32 = 0.3;
 fn main() {
     let mut processes: Vec<Process> = generate_processes();
     generate_requests(&mut processes);
-    //proportional_allocation(&mut processes);
     let requests_no = get_requests_no(&mut processes);
-    equal_allocation(&mut processes);
+    proportional_allocation(&mut processes);
+    //equal_allocation(&mut processes);
     let page_faults = lru(&mut processes, requests_no);
     println!("Requests no: {}", requests_no);
-    print_page_faults(page_faults);
+    print_page_faults(page_faults, &mut processes);
 }
 
 fn generate_processes() -> Vec<Process> {
@@ -49,22 +50,38 @@ fn get_requests_no(processes: &mut Vec<Process>) -> i32 {
     requests_sum
 }
 
-fn print_page_faults(page_faults: [i32; PROCESSES_NO as usize]) {
-    let mut iterator = 1;
+fn print_page_faults(page_faults: [i32; PROCESSES_NO as usize], processes: &mut Vec<Process>) {
+    let mut iterator = 0;
     let mut sum = 0;
-    while iterator <= page_faults.len() {
+    let mut sum_stops = 0;
+    let mut sum_scrambles = 0;
+    while iterator < page_faults.len() {
         println!(
-            "Process no: {}, no page faults: {}",
+            "Process no: {}, no page faults: {}, no stops: {}, no scrambles: {}",
             iterator,
-            page_faults[iterator - 1]
+            page_faults[iterator],
+            processes[iterator].how_many_stops,
+            processes[iterator].how_many_scrambles
         );
-        sum += page_faults[iterator - 1];
+        sum += page_faults[iterator];
+        sum_stops += processes[iterator].how_many_stops;
+        sum_scrambles += processes[iterator].how_many_scrambles;
         iterator += 1;
     }
     println!("Sum of all page faults: {}", sum);
     println!(
         "Avg page faults per process: {}",
         (sum as f32) / (PROCESSES_NO as f32)
+    );
+    println!("Sum of all process stops: {}", sum_stops);
+    println!(
+        "Avg stops per process: {}",
+        (sum_stops as f32) / (PROCESSES_NO as f32)
+    );
+    println!("Sum of all process scrambles: {}", sum_scrambles);
+    println!(
+        "Avg scrambles per process: {}",
+        (sum_scrambles as f32) / (PROCESSES_NO as f32)
     );
 }
 
@@ -77,6 +94,7 @@ fn lru(processes: &mut Vec<Process>, requests_no: i32) -> [i32; PROCESSES_NO as 
     let mut counter = 0;
     let mut page_faults: [i32; PROCESSES_NO as usize] = [0; PROCESSES_NO as usize];
     let mut free_frames: Vec<i32> = Vec::new();
+    let mut time_window = 0;
 
     while initializer < FRAMES_NO {
         let temp = processes.get(current_process as usize).unwrap();
@@ -92,26 +110,19 @@ fn lru(processes: &mut Vec<Process>, requests_no: i32) -> [i32; PROCESSES_NO as 
         initializer += 1;
     }
 
-    let mut debugger = 0;
-
     while counter < requests_no {
-        debugger += 1;
         let temp = rng.gen_range(0, PROCESSES_NO);
-        if debugger % 1000 == 0 {
-            print_motherfucking_garbo(processes, &free_frames);
-        }
-
         let temp_proc = processes.get_mut(temp as usize).unwrap();
 
         if temp_proc.is_stopped {
-            if free_frames.is_empty() {
-                continue;
+            if free_frames.len() >= temp_proc.frames_wanted as usize {
+                add_new_frames(temp_proc, &mut free_frames);
             } else {
-                add_new_frame(temp_proc, &mut free_frames);
+                continue;
             }
         }
 
-        temp_proc.time_window += 1;
+        time_window += 1;
         if temp_proc.requests.len() as i32 != current_requests[temp as usize] {
             if !frames.contains(
                 temp_proc
@@ -124,6 +135,10 @@ fn lru(processes: &mut Vec<Process>, requests_no: i32) -> [i32; PROCESSES_NO as 
                 let mut index = temp_proc.frames[frame_counter];
                 let mut min_index = temp_proc.frames[temp_proc.frames.len() - 1];
                 let mut scan_index = current_requests[temp as usize];
+
+                temp_proc
+                    .unique_pages
+                    .insert(*temp_proc.requests.get(scan_index as usize).unwrap());
 
                 while index != temp_proc.frames[temp_proc.frames.len() - 1] {
                     if frames[index as usize]
@@ -155,8 +170,14 @@ fn lru(processes: &mut Vec<Process>, requests_no: i32) -> [i32; PROCESSES_NO as 
                 current_requests[temp as usize] += 1;
             }
         }
-        if temp_proc.time_window == 20 {
-            page_fault_frequency(temp_proc, &mut free_frames);
+        if time_window == 40 {
+            //page_fault_frequency(temp_proc, &mut free_frames);
+            if temp_proc.page_faults >= 20 {
+                temp_proc.how_many_scrambles += 1;
+            }
+            temp_proc.page_faults = 0;
+            calculate_d(processes, &mut free_frames);
+            time_window = 0;
         }
         counter += 1;
     }
@@ -229,7 +250,11 @@ fn proportional_allocation(processes: &mut Vec<Process>) {
     while sum_all_frames != FRAMES_NO {
         let temp = rng.gen_range(0, PROCESSES_NO);
         if sum_all_frames > FRAMES_NO {
-            coeffs[temp as usize] -= 1.0;
+            if coeffs[temp as usize].round() as i32 != 1 {
+                coeffs[temp as usize] -= 1.0;
+            } else {
+                continue;
+            }
         } else {
             coeffs[temp as usize] += 1.0;
         }
@@ -260,8 +285,6 @@ fn proportional_allocation(processes: &mut Vec<Process>) {
 
 fn page_fault_frequency(process: &mut Process, free_frames: &mut Vec<i32>) {
     let pff = process.calculate_pff();
-    process.time_window = 0;
-    process.page_faults = 0;
 
     if pff < LOWER_PFF && process.frames.len() > 1 {
         free_frames.push(process.frames.pop().unwrap());
@@ -269,41 +292,169 @@ fn page_fault_frequency(process: &mut Process, free_frames: &mut Vec<i32>) {
         if !free_frames.is_empty() {
             process.frames.push(free_frames.pop().unwrap());
         } else {
-            process.is_stopped = true;
+            process.frames_wanted = process.frames.len() as i32 + 1;
             stop_process(process, free_frames);
         }
     }
 }
 
-fn add_new_frame(process: &mut Process, free_frames: &mut Vec<i32>) {
-    process.frames.push(free_frames.pop().unwrap());
+fn add_new_frames(process: &mut Process, free_frames: &mut Vec<i32>) {
+    let mut iterator = 0;
+    while iterator < process.frames_wanted {
+        process.frames.push(free_frames.pop().unwrap());
+        iterator += 1;
+    }
     process.is_stopped = false;
+    process.frames_wanted = 0;
 }
 
 fn stop_process(process: &mut Process, free_frames: &mut Vec<i32>) {
     let mut iterator = 0;
-    while iterator < process.frames.len() {
+    process.how_many_stops += 1;
+    process.is_stopped = true;
+    let frames_no = process.frames.len();
+    while iterator < frames_no {
         free_frames.push(process.frames.pop().unwrap());
         iterator += 1;
     }
 }
 
-fn print_motherfucking_garbo(processes: &Vec<Process>, free_frames: &Vec<i32>) {
+fn calculate_d(processes: &mut Vec<Process>, free_frames: &mut Vec<i32>) {
     let mut iterator = 0;
+    let mut d = 0;
     while iterator < processes.len() {
-        let mut inner_it = 0;
-        print!("Proc {}: ", iterator);
-        while inner_it < processes[iterator].frames.len() {
-            print!("{} ", processes[iterator].frames[inner_it]);
-            inner_it += 1;
-        }
-        println!();
+        d += processes[iterator].calculate_wss();
+        processes[iterator].time_window = 0;
         iterator += 1;
+    }
+    if d <= FRAMES_NO {
+        wss_allocation(processes, free_frames);
+    } else {
+        while d > FRAMES_NO {
+            let index = lowest_wss_proc(processes);
+            d -= processes[index].frames.len() as i32;
+            processes[index].frames_wanted = processes[index].calculate_wss();
+            stop_process(&mut processes[index], free_frames);
+        }
+        proportional_wss(processes, free_frames);
     }
     iterator = 0;
-    println!("Free frames: ");
-    while iterator < free_frames.len() {
-        print!("{} ", free_frames[iterator]);
+    while iterator < processes.len() {
+        processes[iterator].unique_pages = HashSet::new();
         iterator += 1;
     }
+}
+
+fn wss_allocation(processes: &mut Vec<Process>, free_frames: &mut Vec<i32>) {
+    let mut iterator = 0;
+    iterator = 0;
+
+    while iterator < processes.len() {
+        let mut frames_no = processes[iterator].frames.len();
+        while frames_no != 0 {
+            free_frames.push(processes[iterator].frames.pop().unwrap());
+            frames_no -= 1;
+        }
+        iterator += 1;
+    }
+
+    iterator = 0;
+    while iterator < processes.len() {
+        let mut wss = processes[iterator].calculate_wss();
+        if wss == 0 {
+            processes[iterator].frames_wanted = 1;
+            stop_process(&mut processes[iterator], free_frames);
+        }
+        while wss != 0 {
+            processes[iterator].frames.push(free_frames.pop().unwrap());
+            wss -= 1;
+        }
+        iterator += 1;
+    }
+}
+
+fn lowest_wss_proc(processes: &mut Vec<Process>) -> usize {
+    let mut lowest_index = 0;
+    let mut min = FRAMES_NO;
+    let mut iterator = 0;
+    while iterator < processes.len() {
+        if processes[iterator].calculate_wss() < min && !processes[iterator].is_stopped {
+            min = processes[iterator].calculate_wss();
+            lowest_index = iterator;
+        }
+        iterator += 1;
+    }
+    lowest_index
+}
+
+fn proportional_wss(processes: &mut Vec<Process>, free_frames: &mut Vec<i32>) {
+    let mut iterator = 0;
+    let mut working_processes = 0;
+    let mut sum_all_wss = 0;
+    let mut coeffs: Vec<f64> = Vec::new();
+    let mut sum_all_frames = 0;
+    let mut rng = rand::thread_rng();
+    let mut current_frame = 0;
+
+    while iterator < processes.len() {
+        if !processes[iterator].is_stopped {
+            working_processes += 1;
+            sum_all_wss += processes[iterator].calculate_wss();
+        }
+        iterator += 1;
+    }
+
+    iterator = 0;
+    while iterator < processes.len() {
+        if !processes[iterator].is_stopped {
+            let coeff = (processes[iterator].calculate_wss() as f64) / (sum_all_wss as f64)
+                * (FRAMES_NO as f64);
+            coeffs.push(coeff);
+            processes[iterator].frames.clear();
+            sum_all_frames += coeff.round() as i32;
+        }
+        iterator += 1;
+    }
+
+    while sum_all_frames != FRAMES_NO {
+        let temp = rng.gen_range(0, working_processes);
+        if sum_all_frames > FRAMES_NO {
+            if coeffs[temp as usize].round() as i32 != 1 {
+                coeffs[temp as usize] -= 1.0;
+            } else {
+                continue;
+            }
+        } else {
+            coeffs[temp as usize] += 1.0;
+        }
+        sum_all_frames = sum_of_array(&coeffs);
+    }
+
+    iterator = 0;
+    let mut coeff_iter = 0;
+    while iterator < processes.len() {
+        if !processes[iterator].is_stopped {
+            processes[iterator as usize].set_first_frame(current_frame);
+            current_frame += coeffs[coeff_iter].round() as i32;
+            processes[iterator as usize].set_last_frame(current_frame - 1);
+            coeff_iter += 1;
+        }
+        iterator += 1;
+    }
+
+    iterator = 0;
+    let mut current_process = 0;
+    while current_process < PROCESSES_NO {
+        if !processes[current_process as usize].is_stopped {
+            let temp = processes[current_process as usize].get_last_frame();
+            while iterator <= temp as usize {
+                processes[current_process as usize]
+                    .frames
+                    .push(iterator as i32);
+                iterator += 1;
+            }
+        }
+        current_process += 1;
+    }
+    *free_frames = Vec::new();
 }

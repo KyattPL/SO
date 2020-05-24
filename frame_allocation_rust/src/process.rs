@@ -1,4 +1,5 @@
 use rand::prelude::*;
+use std::collections::HashSet;
 
 pub struct Process {
     page_min: i32,
@@ -10,6 +11,10 @@ pub struct Process {
     pub time_window: i32,
     pub page_faults: i32,
     pub is_stopped: bool,
+    pub frames_wanted: i32,
+    pub unique_pages: HashSet<i32>,
+    pub how_many_stops: i32,
+    pub how_many_scrambles: i32,
 }
 
 impl Process {
@@ -24,6 +29,10 @@ impl Process {
             time_window: 0,
             page_faults: 0,
             is_stopped: false,
+            frames_wanted: 0,
+            unique_pages: HashSet::new(),
+            how_many_stops: 0,
+            how_many_scrambles: 0,
         }
     }
 
@@ -85,5 +94,9 @@ impl Process {
 
     pub fn calculate_pff(&self) -> f32 {
         (self.page_faults as f32) / (self.time_window as f32)
+    }
+
+    pub fn calculate_wss(&self) -> i32 {
+        self.unique_pages.len() as i32
     }
 }
