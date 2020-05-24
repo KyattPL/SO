@@ -83,18 +83,18 @@ fn print_page_faults(page_faults: [i32; PROCESSES_NO as usize], processes: &mut 
     let mut iterator = 0;
     let mut sum = 0;
     let mut sum_stops = 0;
-    let mut sum_scrambles = 0;
+    let mut sum_thrashing = 0;
     while iterator < page_faults.len() {
         println!(
-            "Process no: {}, no page faults: {}, no stops: {}, no scrambles: {}",
+            "Process no: {}, nof page faults: {}, nof stops: {}, nof thrashing: {}",
             iterator,
             page_faults[iterator],
             processes[iterator].how_many_stops,
-            processes[iterator].how_many_scrambles
+            processes[iterator].how_much_thrashing
         );
         sum += page_faults[iterator];
         sum_stops += processes[iterator].how_many_stops;
-        sum_scrambles += processes[iterator].how_many_scrambles;
+        sum_thrashing += processes[iterator].how_much_thrashing;
         iterator += 1;
     }
     println!("Sum of all page faults: {}", sum);
@@ -107,10 +107,10 @@ fn print_page_faults(page_faults: [i32; PROCESSES_NO as usize], processes: &mut 
         "Avg stops per process: {}",
         (sum_stops as f32) / (PROCESSES_NO as f32)
     );
-    println!("Sum of all process scrambles: {}", sum_scrambles);
+    println!("Sum of all process thrashing: {}", sum_thrashing);
     println!(
-        "Avg scrambles per process: {}",
-        (sum_scrambles as f32) / (PROCESSES_NO as f32)
+        "Avg thrashing per process: {}",
+        (sum_thrashing as f32) / (PROCESSES_NO as f32)
     );
     println!();
 }
@@ -118,7 +118,7 @@ fn print_page_faults(page_faults: [i32; PROCESSES_NO as usize], processes: &mut 
 fn lru(
     processes: &mut Vec<Process>,
     requests_no: i32,
-    queue: &Vec<i32>,
+    queue: &[i32],
     flag: i32,
 ) -> [i32; PROCESSES_NO as usize] {
     let mut frames: [i32; FRAMES_NO as usize] = [0; FRAMES_NO as usize];
@@ -213,7 +213,7 @@ fn lru(
                 page_fault_frequency(temp_proc, &mut free_frames);
             }
             if temp_proc.page_faults >= 20 {
-                temp_proc.how_many_scrambles += 1;
+                temp_proc.how_much_thrashing += 1;
             }
             temp_proc.page_faults = 0;
             if flag == 3 {
@@ -366,7 +366,6 @@ fn calculate_d(processes: &mut Vec<Process>, free_frames: &mut Vec<i32>) {
     let mut d = 0;
     while iterator < processes.len() {
         d += processes[iterator].calculate_wss();
-        processes[iterator].time_window = 0;
         iterator += 1;
     }
     if d <= FRAMES_NO {

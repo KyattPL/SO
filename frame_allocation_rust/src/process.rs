@@ -8,13 +8,12 @@ pub struct Process {
     pub frames: Vec<i32>,
     first_frame: i32,
     last_frame: i32,
-    pub time_window: i32,
     pub page_faults: i32,
     pub is_stopped: bool,
     pub frames_wanted: i32,
     pub unique_pages: HashSet<i32>,
     pub how_many_stops: i32,
-    pub how_many_scrambles: i32,
+    pub how_much_thrashing: i32,
 }
 
 impl Process {
@@ -26,13 +25,12 @@ impl Process {
             frames: vec![],
             first_frame: 0,
             last_frame: 0,
-            time_window: 0,
             page_faults: 0,
             is_stopped: false,
             frames_wanted: 0,
             unique_pages: HashSet::new(),
             how_many_stops: 0,
-            how_many_scrambles: 0,
+            how_much_thrashing: 0,
         }
     }
 
