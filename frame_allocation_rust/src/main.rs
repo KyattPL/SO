@@ -13,9 +13,25 @@ fn main() {
     let mut processes: Vec<Process> = generate_processes();
     generate_requests(&mut processes);
     let requests_no = get_requests_no(&mut processes);
+    let queue = generate_queue(requests_no);
+
+    equal_allocation(&mut processes);
+    let page_faults = lru(&mut processes, requests_no, &queue, 0);
+    println!("Requests no: {}", requests_no);
+    print_page_faults(page_faults, &mut processes);
+
     proportional_allocation(&mut processes);
-    //equal_allocation(&mut processes);
-    let page_faults = lru(&mut processes, requests_no);
+    let page_faults = lru(&mut processes, requests_no, &queue, 1);
+    println!("Requests no: {}", requests_no);
+    print_page_faults(page_faults, &mut processes);
+
+    proportional_allocation(&mut processes);
+    let page_faults = lru(&mut processes, requests_no, &queue, 2);
+    println!("Requests no: {}", requests_no);
+    print_page_faults(page_faults, &mut processes);
+
+    proportional_allocation(&mut processes);
+    let page_faults = lru(&mut processes, requests_no, &queue, 3);
     println!("Requests no: {}", requests_no);
     print_page_faults(page_faults, &mut processes);
 }
@@ -40,6 +56,19 @@ fn generate_requests(processes: &mut Vec<Process>) {
     for proc in processes {
         proc.generate_requests();
     }
+}
+
+fn generate_queue(requests_no: i32) -> Vec<i32> {
+    let mut queue: Vec<i32> = Vec::new();
+    let mut iterator = 0;
+    let mut rng = rand::thread_rng();
+
+    while iterator < requests_no {
+        let temp = rng.gen_range(0, PROCESSES_NO);
+        queue.push(temp);
+        iterator += 1;
+    }
+    queue
 }
 
 fn get_requests_no(processes: &mut Vec<Process>) -> i32 {
@@ -83,9 +112,15 @@ fn print_page_faults(page_faults: [i32; PROCESSES_NO as usize], processes: &mut 
         "Avg scrambles per process: {}",
         (sum_scrambles as f32) / (PROCESSES_NO as f32)
     );
+    println!();
 }
 
-fn lru(processes: &mut Vec<Process>, requests_no: i32) -> [i32; PROCESSES_NO as usize] {
+fn lru(
+    processes: &mut Vec<Process>,
+    requests_no: i32,
+    queue: &Vec<i32>,
+    flag: i32,
+) -> [i32; PROCESSES_NO as usize] {
     let mut frames: [i32; FRAMES_NO as usize] = [0; FRAMES_NO as usize];
     let mut initializer = 0;
     let mut rng = rand::thread_rng();
@@ -111,14 +146,15 @@ fn lru(processes: &mut Vec<Process>, requests_no: i32) -> [i32; PROCESSES_NO as 
     }
 
     while counter < requests_no {
-        let temp = rng.gen_range(0, PROCESSES_NO);
-        let temp_proc = processes.get_mut(temp as usize).unwrap();
+        let mut temp = queue[counter as usize];
+        let mut temp_proc = processes.get_mut(temp as usize).unwrap();
 
-        if temp_proc.is_stopped {
+        while temp_proc.is_stopped {
             if free_frames.len() >= temp_proc.frames_wanted as usize {
                 add_new_frames(temp_proc, &mut free_frames);
             } else {
-                continue;
+                temp = rng.gen_range(0, PROCESSES_NO);
+                temp_proc = processes.get_mut(temp as usize).unwrap();
             }
         }
 
@@ -136,9 +172,11 @@ fn lru(processes: &mut Vec<Process>, requests_no: i32) -> [i32; PROCESSES_NO as 
                 let mut min_index = temp_proc.frames[temp_proc.frames.len() - 1];
                 let mut scan_index = current_requests[temp as usize];
 
-                temp_proc
-                    .unique_pages
-                    .insert(*temp_proc.requests.get(scan_index as usize).unwrap());
+                if flag == 3 {
+                    temp_proc
+                        .unique_pages
+                        .insert(*temp_proc.requests.get(scan_index as usize).unwrap());
+                }
 
                 while index != temp_proc.frames[temp_proc.frames.len() - 1] {
                     if frames[index as usize]
@@ -171,12 +209,16 @@ fn lru(processes: &mut Vec<Process>, requests_no: i32) -> [i32; PROCESSES_NO as 
             }
         }
         if time_window == 40 {
-            //page_fault_frequency(temp_proc, &mut free_frames);
+            if flag == 2 {
+                page_fault_frequency(temp_proc, &mut free_frames);
+            }
             if temp_proc.page_faults >= 20 {
                 temp_proc.how_many_scrambles += 1;
             }
             temp_proc.page_faults = 0;
-            calculate_d(processes, &mut free_frames);
+            if flag == 3 {
+                calculate_d(processes, &mut free_frames);
+            }
             time_window = 0;
         }
         counter += 1;
@@ -347,8 +389,6 @@ fn calculate_d(processes: &mut Vec<Process>, free_frames: &mut Vec<i32>) {
 
 fn wss_allocation(processes: &mut Vec<Process>, free_frames: &mut Vec<i32>) {
     let mut iterator = 0;
-    iterator = 0;
-
     while iterator < processes.len() {
         let mut frames_no = processes[iterator].frames.len();
         while frames_no != 0 {

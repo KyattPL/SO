@@ -93,7 +93,7 @@ impl Process {
     }
 
     pub fn calculate_pff(&self) -> f32 {
-        (self.page_faults as f32) / (self.time_window as f32)
+        (self.page_faults as f32) / 40.0
     }
 
     pub fn calculate_wss(&self) -> i32 {
