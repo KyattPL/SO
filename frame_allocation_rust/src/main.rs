@@ -168,7 +168,13 @@ fn lru(
             ) {
                 let mut frame_counter = 0;
                 let mut min = requests_no;
+                if flag == 3 {
+                    println!("one");
+                }
                 let mut index = temp_proc.frames[frame_counter];
+                if flag == 3 {
+                    println!("two");
+                }
                 let mut min_index = temp_proc.frames[temp_proc.frames.len() - 1];
                 let mut scan_index = current_requests[temp as usize];
 
