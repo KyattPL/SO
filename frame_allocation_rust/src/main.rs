@@ -168,13 +168,7 @@ fn lru(
             ) {
                 let mut frame_counter = 0;
                 let mut min = requests_no;
-                if flag == 3 {
-                    println!("one");
-                }
                 let mut index = temp_proc.frames[frame_counter];
-                if flag == 3 {
-                    println!("two");
-                }
                 let mut min_index = temp_proc.frames[temp_proc.frames.len() - 1];
                 let mut scan_index = current_requests[temp as usize];
 
@@ -380,7 +374,12 @@ fn calculate_d(processes: &mut Vec<Process>, free_frames: &mut Vec<i32>) {
         while d > FRAMES_NO {
             let index = lowest_wss_proc(processes);
             d -= processes[index].frames.len() as i32;
-            processes[index].frames_wanted = processes[index].calculate_wss();
+            let wss = processes[index].calculate_wss();
+            if wss == 0 {
+                processes[index].frames_wanted = 1;
+            } else {
+                processes[index].frames_wanted = wss;
+            }
             stop_process(&mut processes[index], free_frames);
         }
         proportional_wss(processes, free_frames);
