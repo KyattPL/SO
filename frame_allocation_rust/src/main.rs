@@ -8,6 +8,7 @@ const FRAMES_NO: i32 = 30;
 const PROCESSES_NO: i32 = 10;
 const UPPER_PFF: f32 = 0.6;
 const LOWER_PFF: f32 = 0.3;
+const CHECK_TIME: i32 = 20;
 
 fn main() {
     let mut processes: Vec<Process> = generate_processes();
@@ -208,7 +209,7 @@ fn lru(
                 current_requests[temp as usize] += 1;
             }
         }
-        if time_window == 40 {
+        if time_window == CHECK_TIME {
             if flag == 2 {
                 page_fault_frequency(temp_proc, &mut free_frames);
             }

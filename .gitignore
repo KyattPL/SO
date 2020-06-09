@@ -5,6 +5,7 @@ disk_scheduling_rust/target/
 page_replacement_rust/target/
 frame_allocation_rust/target/
 frame_allocation_rust/.vscode/
+multicore_load_balance_rust/target/
 
 # Remove Cargo.lock from gitignore if creating an executable, leave it for libraries
 # More information here https://doc.rust-lang.org/cargo/guide/cargo-toml-vs-cargo-lock.html
