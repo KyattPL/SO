@@ -9,7 +9,7 @@ impl Process {
     pub fn new() -> Process {
         let mut rng = thread_rng();
         let pow = rng.gen_range(1, 10);
-        let time = rng.gen_range(20, 50);
+        let time = rng.gen_range(750, 1250);
         Process {
             required_power: pow,
             time_left: time,

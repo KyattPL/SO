@@ -11,7 +11,7 @@ const R: i32 = 30;
 const Z: i32 = 10;
 const NO_CPUS: i32 = 50;
 const NO_PROCESSES: i32 = 100_000;
-const RAND_PROCESS_CHANCE: i32 = 85;
+const RAND_PROCESS_CHANCE: i32 = 60;
 
 fn main() {
     let mut cpus = setup_cpus(NO_CPUS);
@@ -43,7 +43,13 @@ fn avg_load(cpus: &mut Vec<CPU>, time: i32) -> f32 {
     while iter < NO_CPUS {
         let temp_cpu = cpus.get(iter as usize).unwrap();
         let avg = (temp_cpu.get_sum_of_load() as f32) / (time as f32);
-        println!("CPU no {}, avg load: {}", iter + 1, avg);
+        println!(
+            "CPU no {}, avg load: {}, asked: {}, given : {}",
+            iter + 1,
+            avg,
+            temp_cpu.get_asked(),
+            temp_cpu.get_given()
+        );
         iter += 1;
         global_avg += avg;
     }
@@ -79,7 +85,7 @@ fn clear_cpus(cpus: &mut Vec<CPU>) {
         let cpu = cpus.get_mut(index).unwrap();
         cpu.clear_load();
         cpu.clear_asked();
-        cpu.clear_moved();
+        cpu.clear_given();
         index += 1;
     }
 }
@@ -93,7 +99,7 @@ fn dispenser(cpus: &mut Vec<CPU>) -> (i32, i32) {
     while processes_done < NO_PROCESSES {
         time_passed += 1;
 
-        if rng.gen_range(1, 101) >= RAND_PROCESS_CHANCE {
+        if rng.gen_range(1, 101) >= (100 - RAND_PROCESS_CHANCE) {
             let process = Process::new();
             let mut how_many_asked = 0;
             let mut asked: HashSet<i32> = HashSet::new();
@@ -102,6 +108,7 @@ fn dispenser(cpus: &mut Vec<CPU>) -> (i32, i32) {
             asked.insert(cpu_asking_no);
             let mut found_index: i32 = -1;
             while how_many_asked != Z {
+                how_many_asked += 1;
                 let cpu_number = rng.gen_range(0, NO_CPUS);
                 if asked.contains(&cpu_number) {
                     continue;
@@ -113,16 +120,20 @@ fn dispenser(cpus: &mut Vec<CPU>) -> (i32, i32) {
                     break;
                 } else {
                     asked.insert(cpu_number);
-                    how_many_asked += 1;
                 }
             }
             if !has_been_added {
                 let cpu_asking = cpus.get_mut(cpu_asking_no as usize).unwrap();
+                cpu_asking.ask(how_many_asked);
                 if cpu_asking.can_process(&process) {
                     found_index = cpu_asking_no;
                 } else {
                     failed_processes += 1;
                 }
+            } else {
+                let cpu_asking = cpus.get_mut(cpu_asking_no as usize).unwrap();
+                cpu_asking.ask(how_many_asked);
+                cpu_asking.give();
             }
             if found_index != -1 {
                 cpus.get_mut(found_index as usize).unwrap().add(process);
@@ -147,28 +158,32 @@ fn fair_work(cpus: &mut Vec<CPU>) -> (i32, i32) {
 
     while processes_done < NO_PROCESSES {
         time_passed += 1;
-        if rng.gen_range(1, 101) >= RAND_PROCESS_CHANCE {
+        if rng.gen_range(1, 101) >= (100 - RAND_PROCESS_CHANCE) {
             let process = Process::new();
-            let mut how_many_asked = 0;
-            let mut asked: HashSet<i32> = HashSet::new();
+            let mut how_many_asked = -1;
+            let mut cpu_pool: Vec<i32> = vec![0; NO_CPUS as usize]
+                .into_iter()
+                .map(|_x| {
+                    how_many_asked += 1;
+                    how_many_asked
+                })
+                .collect();
+            how_many_asked = 0;
             let mut has_been_added = false;
             let cpu_asking_no = rng.gen_range(0, NO_CPUS);
-            asked.insert(cpu_asking_no);
             let mut found_index: i32 = -1;
             while how_many_asked != NO_CPUS {
-                let cpu_number = rng.gen_range(0, NO_CPUS);
-                if asked.contains(&cpu_number) {
-                    continue;
-                }
-                let temp_cpu = cpus.get_mut(cpu_number as usize).unwrap();
+                how_many_asked += 1;
+                let choice = rng.gen_range(0, cpu_pool.len());
+                let cpu_number = cpu_pool.get(choice).unwrap();
+                let temp_cpu = cpus.get_mut(*cpu_number as usize).unwrap();
                 if !temp_cpu.is_overloaded() && temp_cpu.can_process(&process) {
-                    found_index = cpu_number;
+                    found_index = *cpu_number;
                     has_been_added = true;
                     break;
-                } else {
-                    asked.insert(cpu_number);
-                    how_many_asked += 1;
                 }
+                temp_cpu.give();
+                cpu_pool.remove(choice as usize);
             }
             if !has_been_added {
                 let cpu_asking = cpus.get_mut(cpu_asking_no as usize).unwrap();
@@ -201,28 +216,32 @@ fn hardworking(cpus: &mut Vec<CPU>) -> (i32, i32) {
 
     while processes_done < NO_PROCESSES {
         time_passed += 1;
-        if rng.gen_range(1, 101) >= RAND_PROCESS_CHANCE {
+        if rng.gen_range(1, 101) >= (100 - RAND_PROCESS_CHANCE) {
             let process = Process::new();
-            let mut how_many_asked = 0;
-            let mut asked: HashSet<i32> = HashSet::new();
+            let mut how_many_asked = -1;
+            let mut cpu_pool: Vec<i32> = vec![0; NO_CPUS as usize]
+                .into_iter()
+                .map(|_x| {
+                    how_many_asked += 1;
+                    how_many_asked
+                })
+                .collect();
+            how_many_asked = 0;
             let mut has_been_added = false;
             let cpu_asking_no = rng.gen_range(0, NO_CPUS);
-            asked.insert(cpu_asking_no);
             let mut found_index: i32 = -1;
             while how_many_asked != NO_CPUS {
-                let cpu_number = rng.gen_range(0, NO_CPUS);
-                if asked.contains(&cpu_number) {
-                    continue;
-                }
-                let temp_cpu = cpus.get_mut(cpu_number as usize).unwrap();
+                how_many_asked += 1;
+                let choice = rng.gen_range(0, cpu_pool.len());
+                let cpu_number = cpu_pool.get(choice).unwrap();
+                let temp_cpu = cpus.get_mut(*cpu_number as usize).unwrap();
                 if !temp_cpu.is_overloaded() && temp_cpu.can_process(&process) {
-                    found_index = cpu_number;
+                    found_index = *cpu_number;
                     has_been_added = true;
                     break;
-                } else {
-                    asked.insert(cpu_number);
-                    how_many_asked += 1;
                 }
+                temp_cpu.give();
+                cpu_pool.remove(choice as usize);
             }
             if !has_been_added {
                 let cpu_asking = cpus.get_mut(cpu_asking_no as usize).unwrap();
@@ -245,6 +264,7 @@ fn hardworking(cpus: &mut Vec<CPU>) -> (i32, i32) {
                         let mut temp_vec: Vec<Process> = Vec::new();
                         while cpus.get_mut(inner_iter as usize).unwrap().is_overloaded() {
                             temp_vec.push(cpus.get_mut(inner_iter as usize).unwrap().pop());
+                            cpus.get_mut(inner_iter as usize).unwrap().give();
                         }
                         while !temp_vec.is_empty() {
                             cpus.get_mut(iter as usize)
@@ -252,6 +272,7 @@ fn hardworking(cpus: &mut Vec<CPU>) -> (i32, i32) {
                                 .add(temp_vec.pop().unwrap());
                         }
                     }
+                    cpus.get_mut(iter as usize).unwrap().ask(1);
                     inner_iter += 1;
                 }
             }

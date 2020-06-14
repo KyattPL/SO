@@ -7,7 +7,7 @@ pub struct CPU {
     processes: Vec<Process>,
     sum_of_load: i32,
     count_asked: i32,
-    count_moved: i32,
+    count_given: i32,
 }
 
 impl CPU {
@@ -19,7 +19,7 @@ impl CPU {
             processes: Vec::new(),
             sum_of_load: 0,
             count_asked: 0,
-            count_moved: 0,
+            count_given: 0,
         }
     }
 
@@ -32,7 +32,9 @@ impl CPU {
     }
 
     pub fn pop(&mut self) -> Process {
-        self.processes.pop().unwrap()
+        let process = self.processes.pop().unwrap();
+        self.current_load -= process.required_power;
+        process
     }
 
     pub fn can_process(&self, proc: &Process) -> bool {
@@ -48,8 +50,24 @@ impl CPU {
         self.sum_of_load += self.current_load;
     }
 
+    pub fn ask(&mut self, how_many: i32) {
+        self.count_asked += how_many;
+    }
+
+    pub fn give(&mut self) {
+        self.count_given += 1;
+    }
+
     pub fn get_sum_of_load(&self) -> i32 {
         self.sum_of_load
+    }
+
+    pub fn get_asked(&self) -> i32 {
+        self.count_asked
+    }
+
+    pub fn get_given(&self) -> i32 {
+        self.count_given
     }
 
     pub fn clear_load(&mut self) {
@@ -60,8 +78,8 @@ impl CPU {
         self.count_asked = 0;
     }
 
-    pub fn clear_moved(&mut self) {
-        self.count_moved = 0;
+    pub fn clear_given(&mut self) {
+        self.count_given = 0;
     }
 
     pub fn work(&mut self) -> i32 {
