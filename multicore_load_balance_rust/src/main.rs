@@ -11,11 +11,13 @@ const R: i32 = 30;
 const Z: i32 = 10;
 const NO_CPUS: i32 = 50;
 const NO_PROCESSES: i32 = 100_000;
-const RAND_PROCESS_CHANCE: i32 = 60;
+const RAND_PROCESS_CHANCE: i32 = 90;
 
 fn main() {
     let mut cpus = setup_cpus(NO_CPUS);
-    let (fails, time_passed) = dispenser(&mut cpus);
+    let (mut processes, mut processes2, mut processes3) = generate_processes();
+
+    let (fails, time_passed) = dispenser(&mut cpus, &mut processes);
     println!("No failed processes: {}", fails);
     let global_avg = avg_load(&mut cpus, time_passed);
     standard_deviation(&mut cpus, global_avg, time_passed);
@@ -23,7 +25,7 @@ fn main() {
     println!();
     clear_cpus(&mut cpus);
 
-    let (fails, time_passed) = fair_work(&mut cpus);
+    let (fails, time_passed) = fair_work(&mut cpus, &mut processes2);
     println!("No failed processes: {}", fails);
     let global_avg = avg_load(&mut cpus, time_passed);
     standard_deviation(&mut cpus, global_avg, time_passed);
@@ -31,7 +33,7 @@ fn main() {
     println!();
     clear_cpus(&mut cpus);
 
-    let (fails, time_passed) = hardworking(&mut cpus);
+    let (fails, time_passed) = hardworking(&mut cpus, &mut processes3);
     println!("No failed processes: {}", fails);
     let global_avg = avg_load(&mut cpus, time_passed);
     standard_deviation(&mut cpus, global_avg, time_passed);
@@ -90,7 +92,27 @@ fn clear_cpus(cpus: &mut Vec<CPU>) {
     }
 }
 
-fn dispenser(cpus: &mut Vec<CPU>) -> (i32, i32) {
+fn generate_processes() -> (
+    Vec<(i32, Process)>,
+    Vec<(i32, Process)>,
+    Vec<(i32, Process)>,
+) {
+    let mut procs = Vec::new();
+    let mut procs2 = Vec::new();
+    let mut procs3 = Vec::new();
+    let mut processes_done = 0;
+    let mut rng = rand::thread_rng();
+    while processes_done != NO_PROCESSES {
+        let cpu_no = rng.gen_range(0, NO_CPUS);
+        procs.push((cpu_no, Process::new()));
+        procs2.push((cpu_no, Process::new()));
+        procs3.push((cpu_no, Process::new()));
+        processes_done += 1;
+    }
+    (procs, procs2, procs3)
+}
+
+fn dispenser(cpus: &mut Vec<CPU>, processes: &mut Vec<(i32, Process)>) -> (i32, i32) {
     let mut processes_done = 0;
     let mut rng = thread_rng();
     let mut failed_processes = 0;
@@ -99,12 +121,11 @@ fn dispenser(cpus: &mut Vec<CPU>) -> (i32, i32) {
     while processes_done < NO_PROCESSES {
         time_passed += 1;
 
-        if rng.gen_range(1, 101) >= (100 - RAND_PROCESS_CHANCE) {
-            let process = Process::new();
+        if rng.gen_range(1, 101) >= (100 - RAND_PROCESS_CHANCE) && !processes.is_empty() {
+            let (cpu_asking_no, process) = processes.pop().unwrap();
             let mut how_many_asked = 0;
             let mut asked: HashSet<i32> = HashSet::new();
             let mut has_been_added = false;
-            let cpu_asking_no = rng.gen_range(0, NO_CPUS);
             asked.insert(cpu_asking_no);
             let mut found_index: i32 = -1;
             while how_many_asked != Z {
@@ -129,6 +150,7 @@ fn dispenser(cpus: &mut Vec<CPU>) -> (i32, i32) {
                     found_index = cpu_asking_no;
                 } else {
                     failed_processes += 1;
+                    //processes_done += 1;
                 }
             } else {
                 let cpu_asking = cpus.get_mut(cpu_asking_no as usize).unwrap();
@@ -150,7 +172,7 @@ fn dispenser(cpus: &mut Vec<CPU>) -> (i32, i32) {
     (failed_processes, time_passed)
 }
 
-fn fair_work(cpus: &mut Vec<CPU>) -> (i32, i32) {
+fn fair_work(cpus: &mut Vec<CPU>, processes: &mut Vec<(i32, Process)>) -> (i32, i32) {
     let mut processes_done = 0;
     let mut rng = thread_rng();
     let mut failed_processes = 0;
@@ -158,8 +180,8 @@ fn fair_work(cpus: &mut Vec<CPU>) -> (i32, i32) {
 
     while processes_done < NO_PROCESSES {
         time_passed += 1;
-        if rng.gen_range(1, 101) >= (100 - RAND_PROCESS_CHANCE) {
-            let process = Process::new();
+        if rng.gen_range(1, 101) >= (100 - RAND_PROCESS_CHANCE) && !processes.is_empty() {
+            let (cpu_asking_no, process) = processes.pop().unwrap();
             let mut how_many_asked = -1;
             let mut cpu_pool: Vec<i32> = vec![0; NO_CPUS as usize]
                 .into_iter()
@@ -170,7 +192,6 @@ fn fair_work(cpus: &mut Vec<CPU>) -> (i32, i32) {
                 .collect();
             how_many_asked = 0;
             let mut has_been_added = false;
-            let cpu_asking_no = rng.gen_range(0, NO_CPUS);
             let mut found_index: i32 = -1;
             while how_many_asked != NO_CPUS {
                 how_many_asked += 1;
@@ -208,7 +229,7 @@ fn fair_work(cpus: &mut Vec<CPU>) -> (i32, i32) {
     (failed_processes, time_passed)
 }
 
-fn hardworking(cpus: &mut Vec<CPU>) -> (i32, i32) {
+fn hardworking(cpus: &mut Vec<CPU>, processes: &mut Vec<(i32, Process)>) -> (i32, i32) {
     let mut processes_done = 0;
     let mut rng = thread_rng();
     let mut failed_processes = 0;
@@ -216,8 +237,8 @@ fn hardworking(cpus: &mut Vec<CPU>) -> (i32, i32) {
 
     while processes_done < NO_PROCESSES {
         time_passed += 1;
-        if rng.gen_range(1, 101) >= (100 - RAND_PROCESS_CHANCE) {
-            let process = Process::new();
+        if rng.gen_range(1, 101) >= (100 - RAND_PROCESS_CHANCE) && !processes.is_empty() {
+            let (cpu_asking_no, process) = processes.pop().unwrap();
             let mut how_many_asked = -1;
             let mut cpu_pool: Vec<i32> = vec![0; NO_CPUS as usize]
                 .into_iter()
@@ -228,7 +249,6 @@ fn hardworking(cpus: &mut Vec<CPU>) -> (i32, i32) {
                 .collect();
             how_many_asked = 0;
             let mut has_been_added = false;
-            let cpu_asking_no = rng.gen_range(0, NO_CPUS);
             let mut found_index: i32 = -1;
             while how_many_asked != NO_CPUS {
                 how_many_asked += 1;
