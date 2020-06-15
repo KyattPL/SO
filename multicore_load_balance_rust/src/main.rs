@@ -4,7 +4,6 @@ mod process;
 use cpu::CPU;
 use process::Process;
 use rand::*;
-use std::collections::HashSet;
 
 const P: i32 = 70;
 const R: i32 = 30;
@@ -123,25 +122,29 @@ fn dispenser(cpus: &mut Vec<CPU>, processes: &mut Vec<(i32, Process)>) -> (i32, 
 
         if rng.gen_range(1, 101) >= (100 - RAND_PROCESS_CHANCE) && !processes.is_empty() {
             let (cpu_asking_no, process) = processes.pop().unwrap();
-            let mut how_many_asked = 0;
-            let mut asked: HashSet<i32> = HashSet::new();
+            let mut how_many_asked = -1;
+            let mut cpu_pool: Vec<i32> = vec![0; NO_CPUS as usize]
+                .into_iter()
+                .map(|_x| {
+                    how_many_asked += 1;
+                    how_many_asked
+                })
+                .collect();
+            cpu_pool.remove(cpu_asking_no as usize);
+            how_many_asked = 0;
             let mut has_been_added = false;
-            asked.insert(cpu_asking_no);
             let mut found_index: i32 = -1;
             while how_many_asked != Z {
                 how_many_asked += 1;
-                let cpu_number = rng.gen_range(0, NO_CPUS);
-                if asked.contains(&cpu_number) {
-                    continue;
-                }
-                let temp_cpu = cpus.get_mut(cpu_number as usize).unwrap();
+                let choice = rng.gen_range(0, cpu_pool.len());
+                let cpu_number = cpu_pool.get(choice).unwrap();
+                let temp_cpu = cpus.get_mut(*cpu_number as usize).unwrap();
                 if !temp_cpu.is_overloaded() && temp_cpu.can_process(&process) {
                     has_been_added = true;
-                    found_index = cpu_number;
+                    found_index = *cpu_number;
                     break;
-                } else {
-                    asked.insert(cpu_number);
                 }
+                cpu_pool.remove(choice as usize);
             }
             if !has_been_added {
                 let cpu_asking = cpus.get_mut(cpu_asking_no as usize).unwrap();
@@ -150,7 +153,7 @@ fn dispenser(cpus: &mut Vec<CPU>, processes: &mut Vec<(i32, Process)>) -> (i32, 
                     found_index = cpu_asking_no;
                 } else {
                     failed_processes += 1;
-                    //processes_done += 1;
+                    processes_done += 1;
                 }
             } else {
                 let cpu_asking = cpus.get_mut(cpu_asking_no as usize).unwrap();
@@ -193,7 +196,8 @@ fn fair_work(cpus: &mut Vec<CPU>, processes: &mut Vec<(i32, Process)>) -> (i32, 
             how_many_asked = 0;
             let mut has_been_added = false;
             let mut found_index: i32 = -1;
-            while how_many_asked != NO_CPUS {
+            cpu_pool.remove(cpu_asking_no as usize);
+            while how_many_asked != (NO_CPUS - 1) {
                 how_many_asked += 1;
                 let choice = rng.gen_range(0, cpu_pool.len());
                 let cpu_number = cpu_pool.get(choice).unwrap();
@@ -212,6 +216,7 @@ fn fair_work(cpus: &mut Vec<CPU>, processes: &mut Vec<(i32, Process)>) -> (i32, 
                     found_index = cpu_asking_no;
                 } else {
                     failed_processes += 1;
+                    processes_done += 1;
                 }
             }
             if found_index != -1 {
@@ -250,7 +255,8 @@ fn hardworking(cpus: &mut Vec<CPU>, processes: &mut Vec<(i32, Process)>) -> (i32
             how_many_asked = 0;
             let mut has_been_added = false;
             let mut found_index: i32 = -1;
-            while how_many_asked != NO_CPUS {
+            cpu_pool.remove(cpu_asking_no as usize);
+            while how_many_asked != (NO_CPUS - 1) {
                 how_many_asked += 1;
                 let choice = rng.gen_range(0, cpu_pool.len());
                 let cpu_number = cpu_pool.get(choice).unwrap();
@@ -269,6 +275,7 @@ fn hardworking(cpus: &mut Vec<CPU>, processes: &mut Vec<(i32, Process)>) -> (i32
                     found_index = cpu_asking_no;
                 } else {
                     failed_processes += 1;
+                    processes_done += 1;
                 }
             }
             if found_index != -1 {
